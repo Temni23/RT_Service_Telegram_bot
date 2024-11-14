@@ -88,14 +88,14 @@ async def start_registration(callback_query: types.CallbackQuery):
 @dp.message_handler(state=RegistrationStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer("Теперь введите ваш номер телефона:")
+    await message.answer("Теперь введите ваш номер телефона:", reply_markup=get_cancel())
     await RegistrationStates.waiting_for_phone_number.set()
 
 
 @dp.message_handler(state=RegistrationStates.waiting_for_phone_number)
 async def get_phone_number(message: types.Message, state: FSMContext):
     await state.update_data(phone_number=message.text)
-    await message.answer("Теперь укажите ваше место работы:")
+    await message.answer("Теперь укажите ваше место работы:", reply_markup=get_cancel())
     await RegistrationStates.waiting_for_workplace.set()
 
 
@@ -108,17 +108,19 @@ async def get_workplace(message: types.Message, state: FSMContext):
     workplace = user_data['workplace']
 
     # Подтверждение данных перед регистрацией
+    keyboad = get_cancel()
+    keyboad.add(InlineKeyboardButton(text='ВСЕ ВЕРНО!', callback_data='Верно'))
     await message.answer(
         f"Проверьте ваши данные:\n"
         f"ФИО: {full_name}\n"
         f"Номер телефона: {phone_number}\n"
         f"Место работы: {workplace}\n\n"
-        f"Если все верно, нажмите 'Подтверждаю'." # TODO Переделать на кнопку
+        f"Если все верно, нажмите 'ВСЕ ВЕРНО!'.", reply_markup=keyboad
     )
     await RegistrationStates.next()
 
 
-@dp.message_handler(lambda message: message.text.lower() == 'подтверждаю',
+@dp.callback_query_handler(lambda callback: callback.data == 'Верно',
                     state=RegistrationStates.confirmation_application)
 async def confirm_registration(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
@@ -133,8 +135,9 @@ async def confirm_registration(message: types.Message, state: FSMContext):
         register_user('users.db', user_id, full_name, phone_number, workplace, username)
     except Exception as e:
         logging.error(e) # TODO Переделать на отправку ошибки разработчику
-    await message.answer(
-        "Вы успешно зарегистрированы и теперь можете пользоваться ботом!")
+    await bot.send_message(message.from_user.id,
+        "Вы успешно зарегистрированы и теперь можете пользоваться ботом!",
+                           reply_markup=get_main_menu())
     await state.finish()
 
 ##############################################################################
