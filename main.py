@@ -11,14 +11,15 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
+from datetime import datetime
 
 from FSM_Classes import RegistrationStates, KGMPickupStates
-from api_functions import upload_and_get_link
+from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
                        download_photo)
 from database_functions import is_user_registered, register_user
-from settings import text_message_ansers, YANDEX_CLIENT, YA_DISK_FOLDER, \
-    DEV_TG_ID
+from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
+    DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME)
 
 load_dotenv()
 
@@ -281,14 +282,32 @@ async def get_photo(message: types.Message, state: FSMContext):
     await message.answer_photo(photo=photo_file_id, caption=confirmation_text,
                                reply_markup=confirmation_keyboard)
     await KGMPickupStates.waiting_for_confirmation.set()
+    link_ya_disk = False
     try:
         downloaded_file = await download_photo(photo_file_id, bot)
-        upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
                                   YA_DISK_FOLDER)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
         await bot.send_message(DEV_TG_ID,
             "Произошла ошибка при загрузке фото. Смотри логи.")
+    g_data = [
+              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              user_data['full_name'],
+              user_data['management_company'],
+              user_data['address'],
+              user_data['waste_type'],
+              ]
+    if link_ya_disk:
+        g_data.append(link_ya_disk)
+    try:
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+        losted_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке на GD. "
+                               "Смотри логи." + losted_data)
 
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
@@ -314,7 +333,7 @@ async def random_text_message_answer(message: types.Message) -> None:
 
     На текстовое сообщение пользователя.
     """
-    text = choice(text_message_ansers)
+    text = choice(text_message_answers)
     await message.reply(text=text, reply_markup=get_main_menu())
 
 
