@@ -179,12 +179,39 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
     # Определяем источник (сообщение или callback)
     if isinstance(message, types.Message):
         # Обработчик для команды /kgm_request
-        await message.answer("Введите ваше Фамилию Имя Отчество:",
-                             reply_markup=get_cancel())
+        user_id = message.from_user.id
+        if is_user_registered('users.db', user_id):
+            await message.answer("Введите ваше Фамилию Имя Отчество:",
+                                 reply_markup=get_cancel())
+        else:
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Зарегистрироваться",
+                                     callback_data="register")
+            )
+            await message.reply(
+                "Добро пожаловать! Похоже, вы новый пользователь. "
+                "Нажмите кнопку ниже для регистрации.",
+                reply_markup=keyboard
+            )
+            return
+
     elif isinstance(message, types.CallbackQuery):
         # Обработчик для callback
-        await message.message.answer("Введите ваше Фамилию Имя Отчество:",
-                                     reply_markup=get_cancel())
+        user_id = message.from_user.id
+        if is_user_registered('users.db', user_id):
+            await message.message.answer("Введите ваше Фамилию Имя Отчество:",
+                                         reply_markup=get_cancel())
+        else:
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Зарегистрироваться",
+                                     callback_data="register")
+            )
+            await message.message.answer(
+                "Добро пожаловать! Похоже, вы новый пользователь. "
+                "Нажмите кнопку ниже для регистрации.",
+                reply_markup=keyboard
+            )
+            return
 
     # Переход в состояние ожидания ФИО
     await KGMPickupStates.waiting_for_full_name.set()
