@@ -36,11 +36,9 @@ def get_main_menu() -> InlineKeyboardMarkup:
     Направить обращение
     """
     keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text='Главное меню',
-                                  callback_data='Главное меню')
-    button2 = InlineKeyboardButton(text='Заявка на вывоз КГМ',
+    button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
                                    callback_data='Заявка на вывоз КГМ')
-    keyboard.add(button).add(button2)
+    keyboard.add(button)
     return keyboard
 
 

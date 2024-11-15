@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
@@ -29,8 +29,15 @@ dp = Dispatcher(bot, storage=storage)
 dp.middleware.setup(LoggingMiddleware())
 
 
+###############################################################################
+################# Обработка команд ############################################
+###############################################################################
+
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
+    """
+    Отрабатывает команду start.
+    """
     user_id = message.from_user.id
     if is_user_registered('users.db', user_id):
         await message.reply("Добро пожаловать!, я приму вашу заявку",
@@ -45,25 +52,26 @@ async def send_welcome(message: types.Message):
             reply_markup=keyboard
         )
 
-@dp.callback_query_handler(lambda callback: callback.data == 'cancel', state="*")
+
+@dp.callback_query_handler(lambda callback: callback.data == 'cancel',
+                           state="*")
 async def cmd_cancel(callback: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отрабатывает команду cancel и завершает текущее состояние.
     """
-    # Получаем текущее состояние
     current_state = await state.get_state()
 
-    # Проверяем, если есть активное состояние, завершаем его
     if current_state is not None:
         await state.finish()
-        await callback.message.answer("Вы отменили текущую операцию.", reply_markup=get_main_menu())
+        await callback.message.answer("Вы отменили текущую операцию.",
+                                      reply_markup=get_main_menu())
     else:
-        # Если нет активного состояния, выводим сообщение
-        await callback.message.answer("Сейчас нечего отменять. Попробуйте использовать главное меню.", reply_markup=get_main_menu())
+        await callback.message.answer(
+            "Сейчас нечего отменять. Попробуйте использовать главное меню.",
+            reply_markup=get_main_menu())
 
     # Удаляем уведомление о нажатии кнопки, чтобы оно не оставалось висеть
     await callback.answer()
-
 
 
 ###############################################################################
@@ -71,14 +79,24 @@ async def cmd_cancel(callback: types.CallbackQuery, state: FSMContext) -> None:
 ###############################################################################
 
 @dp.callback_query_handler(Text(equals="register"))
-async def start_registration(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    if is_user_registered('users.db', user_id):
-        await callback_query.message.answer("Вы уже зарегистрированы! "
-                                            "Я приму вашу заявку",
-                            reply_markup=get_main_menu())
+@dp.message_handler(Command("reg"))
+async def start_registration(event: types.CallbackQuery | types.Message):
+    if isinstance(event, types.CallbackQuery):
+        user_id = event.from_user.id
+        message = event.message
+    elif isinstance(event, types.Message):
+        user_id = event.from_user.id
+        message = event
     else:
-        await callback_query.message.answer(
+        # Если `event` не является `CallbackQuery` или `Message`
+        logging.warning("Unknown event type")
+        return
+
+    if is_user_registered('users.db', user_id):
+        await message.answer("Вы уже зарегистрированы! Я приму вашу заявку",
+                             reply_markup=get_main_menu())
+    else:
+        await message.answer(
             "Пожалуйста, введите ваше полное имя (Фамилия Имя Отчество):",
             reply_markup=get_cancel()
         )
@@ -88,14 +106,16 @@ async def start_registration(callback_query: types.CallbackQuery):
 @dp.message_handler(state=RegistrationStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer("Теперь введите ваш номер телефона:", reply_markup=get_cancel())
+    await message.answer("Теперь введите ваш номер телефона:",
+                         reply_markup=get_cancel())
     await RegistrationStates.waiting_for_phone_number.set()
 
 
 @dp.message_handler(state=RegistrationStates.waiting_for_phone_number)
 async def get_phone_number(message: types.Message, state: FSMContext):
     await state.update_data(phone_number=message.text)
-    await message.answer("Теперь укажите ваше место работы:", reply_markup=get_cancel())
+    await message.answer("Теперь укажите ваше место работы:",
+                         reply_markup=get_cancel())
     await RegistrationStates.waiting_for_workplace.set()
 
 
@@ -121,27 +141,34 @@ async def get_workplace(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(lambda callback: callback.data == 'Верно',
-                    state=RegistrationStates.confirmation_application)
-async def confirm_registration(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
+                           state=RegistrationStates.confirmation_application)
+async def confirm_registration(callback_query: types.CallbackQuery,
+                               state: FSMContext):
+    user_id = callback_query.from_user.id
     user_data = await state.get_data()
     full_name = user_data['full_name']
     phone_number = user_data['phone_number']
     workplace = user_data['workplace']
-    username = message.from_user.username
+    username = callback_query.from_user.username
 
     # Сохраняем данные в базе
     try:
-        register_user('users.db', user_id, full_name, phone_number, workplace, username)
+        register_user('users.db', user_id, full_name, phone_number, workplace,
+                      username)
     except Exception as e:
-        logging.error(e) # TODO Переделать на отправку ошибки разработчику
-    await bot.send_message(message.from_user.id,
+        logging.error(
+            e)  # TODO: Можно отправить сообщение об ошибке разработчику
+
+    await callback_query.message.answer(
         "Вы успешно зарегистрированы и теперь можете пользоваться ботом!",
-                           reply_markup=get_main_menu())
+        reply_markup=get_main_menu()
+    )
     await state.finish()
+    await callback_query.answer("Регистрация завершена!")
 
 ##############################################################################
-##################### Работа с сообщениями
+##################### Работа с сообщениями####################################
+##############################################################################
 
 @dp.message_handler()
 async def random_text_message_answer(message: types.Message) -> None:
