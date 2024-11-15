@@ -11,7 +11,7 @@ from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
-from FSM_Classes import RegistrationStates
+from FSM_Classes import RegistrationStates, KGMPickupStates
 from bots_func import get_main_menu, get_cancel
 from database_functions import is_user_registered, register_user
 from settings import text_message_ansers
