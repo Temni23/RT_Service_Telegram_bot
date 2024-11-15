@@ -30,6 +30,13 @@ load_dotenv()
 # logger.addHandler(handler)
 
 
+def get_cancel() -> InlineKeyboardMarkup:
+    """Формирует и возвращает Inline клавиатуру с одной кнопкой Отмена."""
+    keyboard = InlineKeyboardMarkup()
+    button = InlineKeyboardButton(text='Отмена', callback_data='cancel')
+    keyboard.add(button)
+    return keyboard
+
 def get_main_menu() -> InlineKeyboardMarkup:
     """Формирует и возвращает Inline клавиатуру, главное меню.
 
@@ -37,16 +44,19 @@ def get_main_menu() -> InlineKeyboardMarkup:
     """
     keyboard = InlineKeyboardMarkup()
     button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
-                                   callback_data='Заявка на вывоз КГМ')
+                                   callback_data='kgm_request')
     keyboard.add(button)
     return keyboard
 
 
-def get_cancel() -> InlineKeyboardMarkup:
-    """Формирует и возвращает Inline клавиатуру с одной кнопкой Отмена."""
+
+
+def get_waste_type_keyboard() -> InlineKeyboardMarkup:
+    """Формирует и возвращает Inline клавиатуру с типами отходов."""
     keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text='Отмена', callback_data='cancel')
-    keyboard.add(button)
+    waste_types = ["РСО", "КГМ", "Листва в мешках", "Ветки 0,7м"]
+    for waste_type in waste_types:
+        keyboard.add(InlineKeyboardButton(text=waste_type, callback_data=f"waste_type:{waste_type}"))
     return keyboard
 
 
