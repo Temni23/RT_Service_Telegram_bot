@@ -30,6 +30,15 @@ load_dotenv()
 # logger.addHandler(handler)
 
 
+async def download_photo(file_id: str, bot) -> bytes:
+    """Получает file_id возвращает от телеграмма файл в bytes."""
+    file = await bot.get_file(file_id)
+    file_path = file.file_path
+    # Загружаем файл в bytes
+    photo_bytes = await bot.download_file(file_path)
+    return photo_bytes
+
+
 def get_cancel() -> InlineKeyboardMarkup:
     """Формирует и возвращает Inline клавиатуру с одной кнопкой Отмена."""
     keyboard = InlineKeyboardMarkup()

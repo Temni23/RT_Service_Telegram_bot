@@ -4,7 +4,7 @@ from yadisk import Client
 from gspread import Client as GClient
 
 
-def upload_and_get_link(client: Client, filename: str, disk_folder: str) -> str:
+def upload_and_get_link(client: Client, filename: bytes, disk_folder: str) -> str:
     """
     Получает клиент Яндекс диска и имя файла, возвращает ссылку на файл.
     """

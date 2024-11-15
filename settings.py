@@ -13,12 +13,13 @@ init_db('users.db')
 
 #Создаем клиент яндекса
 YANDEX_CLIENT = yadisk.Client(token=os.getenv('YA_DISK_TOKEN'))
-
+YA_DISK_FOLDER = os.getenv('YA_DISK_FOLDER')
 # Устанавливаем соединение с API Google
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 credentials = ServiceAccountCredentials.from_json_keyfile_name('test-sheets-441605-f353fc7f5f8c.json', scope)
 GOOGLE_CLIENT = authorize(credentials)
 
+DEV_TG_ID = os.getenv('DEV_TG_ID')
 
 text_message_ansers = [
     "Я могу отвечать только на вопросы выбранные из меню. Воспользуйтесь им пожалуйста.",

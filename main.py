@@ -13,9 +13,12 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
 from FSM_Classes import RegistrationStates, KGMPickupStates
-from bots_func import get_main_menu, get_cancel, get_waste_type_keyboard
+from api_functions import upload_and_get_link
+from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
+                       download_photo)
 from database_functions import is_user_registered, register_user
-from settings import text_message_ansers
+from settings import text_message_ansers, YANDEX_CLIENT, YA_DISK_FOLDER, \
+    DEV_TG_ID
 
 load_dotenv()
 
@@ -152,7 +155,6 @@ async def confirm_registration(callback_query: types.CallbackQuery,
     workplace = user_data['workplace']
     username = callback_query.from_user.username
 
-    # Сохраняем данные в базе
     try:
         register_user('users.db', user_id, full_name, phone_number, workplace,
                       username)
@@ -279,6 +281,14 @@ async def get_photo(message: types.Message, state: FSMContext):
     await message.answer_photo(photo=photo_file_id, caption=confirmation_text,
                                reply_markup=confirmation_keyboard)
     await KGMPickupStates.waiting_for_confirmation.set()
+    try:
+        downloaded_file = await download_photo(photo_file_id, bot)
+        upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                  YA_DISK_FOLDER)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
+        await bot.send_message(DEV_TG_ID,
+            "Произошла ошибка при загрузке фото. Смотри логи.")
 
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
@@ -290,6 +300,7 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         "Спасибо! Ваша заявка принята.",
         reply_markup=get_main_menu())
     await state.finish()
+    await callback_query.answer()
 
 
 ##############################################################################
