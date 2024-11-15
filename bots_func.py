@@ -30,16 +30,13 @@ load_dotenv()
 # logger.addHandler(handler)
 
 
-def get_main_menu() -> InlineKeyboardMarkup:
-    """Формирует и возвращает Inline клавиатуру, главное меню.
-
-    Направить обращение
-    """
-    keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
-                                   callback_data='Заявка на вывоз КГМ')
-    keyboard.add(button)
-    return keyboard
+async def download_photo(file_id: str, bot) -> bytes:
+    """Получает file_id возвращает от телеграмма файл в bytes."""
+    file = await bot.get_file(file_id)
+    file_path = file.file_path
+    # Загружаем файл в bytes
+    photo_bytes = await bot.download_file(file_path)
+    return photo_bytes
 
 
 def get_cancel() -> InlineKeyboardMarkup:
@@ -47,6 +44,28 @@ def get_cancel() -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup()
     button = InlineKeyboardButton(text='Отмена', callback_data='cancel')
     keyboard.add(button)
+    return keyboard
+
+def get_main_menu() -> InlineKeyboardMarkup:
+    """Формирует и возвращает Inline клавиатуру, главное меню.
+
+    Направить обращение
+    """
+    keyboard = InlineKeyboardMarkup()
+    button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
+                                   callback_data='kgm_request')
+    keyboard.add(button)
+    return keyboard
+
+
+
+
+def get_waste_type_keyboard() -> InlineKeyboardMarkup:
+    """Формирует и возвращает Inline клавиатуру с типами отходов."""
+    keyboard = InlineKeyboardMarkup()
+    waste_types = ["РСО", "КГМ", "Листва в мешках", "Ветки 0,7м"]
+    for waste_type in waste_types:
+        keyboard.add(InlineKeyboardButton(text=waste_type, callback_data=f"waste_type:{waste_type}"))
     return keyboard
 
 

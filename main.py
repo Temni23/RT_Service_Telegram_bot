@@ -3,18 +3,23 @@ import os
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
+                           InputMediaPhoto)
 from aiogram.utils import executor
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
+from datetime import datetime
 
-from FSM_Classes import RegistrationStates
-from bots_func import get_main_menu, get_cancel
+from FSM_Classes import RegistrationStates, KGMPickupStates
+from api_functions import upload_and_get_link, upload_information_to_gsheets
+from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
+                       download_photo)
 from database_functions import is_user_registered, register_user
-from settings import text_message_ansers
+from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
+    DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME)
 
 load_dotenv()
 
@@ -151,7 +156,6 @@ async def confirm_registration(callback_query: types.CallbackQuery,
     workplace = user_data['workplace']
     username = callback_query.from_user.username
 
-    # Сохраняем данные в базе
     try:
         register_user('users.db', user_id, full_name, phone_number, workplace,
                       username)
@@ -166,6 +170,158 @@ async def confirm_registration(callback_query: types.CallbackQuery,
     await state.finish()
     await callback_query.answer("Регистрация завершена!")
 
+
+##############################################################################
+####################### Машина состояний заявка ##############################
+##############################################################################
+
+@dp.message_handler(commands=['kgm_request'])
+@dp.callback_query_handler(lambda callback: callback.data == "kgm_request")
+async def start_kgm_request(message: types.Message | types.CallbackQuery):
+    """Начало процесса подачи заявки на вывоз отходов."""
+    # Определяем источник (сообщение или callback)
+    if isinstance(message, types.Message):
+        # Обработчик для команды /kgm_request
+        user_id = message.from_user.id
+        if is_user_registered('users.db', user_id):
+            await message.answer("Введите ваше Фамилию Имя Отчество:",
+                                 reply_markup=get_cancel())
+        else:
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Зарегистрироваться",
+                                     callback_data="register")
+            )
+            await message.reply(
+                "Добро пожаловать! Похоже, вы новый пользователь. "
+                "Нажмите кнопку ниже для регистрации.",
+                reply_markup=keyboard
+            )
+            return
+
+    elif isinstance(message, types.CallbackQuery):
+        # Обработчик для callback
+        user_id = message.from_user.id
+        if is_user_registered('users.db', user_id):
+            await message.message.answer("Введите ваше Фамилию Имя Отчество:",
+                                         reply_markup=get_cancel())
+        else:
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Зарегистрироваться",
+                                     callback_data="register")
+            )
+            await message.message.answer(
+                "Добро пожаловать! Похоже, вы новый пользователь. "
+                "Нажмите кнопку ниже для регистрации.",
+                reply_markup=keyboard
+            )
+            return
+
+    # Переход в состояние ожидания ФИО
+    await KGMPickupStates.waiting_for_full_name.set()
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
+async def get_full_name(message: types.Message, state: FSMContext):
+    await state.update_data(full_name=message.text)
+    await message.answer("Введите название вашей управляющей компании:",
+                         reply_markup=get_cancel())
+    await KGMPickupStates.waiting_for_management_company.set()
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_management_company)
+async def get_management_company(message: types.Message, state: FSMContext):
+    await state.update_data(management_company=message.text)
+    await message.answer("Введите адрес вашего дома:",
+                         reply_markup=get_cancel())
+    await KGMPickupStates.waiting_for_address.set()
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_address)
+async def get_address(message: types.Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await message.answer("Выберите тип отходов:",
+                         reply_markup=get_waste_type_keyboard())
+    await KGMPickupStates.waiting_for_waste_type.set()
+
+
+@dp.callback_query_handler(
+    lambda callback: callback.data.startswith("waste_type:"),
+    state=KGMPickupStates.waiting_for_waste_type)
+async def get_waste_type(callback_query: types.CallbackQuery,
+                         state: FSMContext):
+    waste_type = callback_query.data.split(":")[1]
+    await state.update_data(waste_type=waste_type)
+    await callback_query.message.answer(
+        "Отправьте фото отходов. В данный момент я могу сохранить одну фотографию.",
+        reply_markup=get_cancel())
+    await KGMPickupStates.waiting_for_photo.set()
+
+
+@dp.message_handler(content_types=['photo'],
+                    state=KGMPickupStates.waiting_for_photo)
+async def get_photo(message: types.Message, state: FSMContext):
+    photo_file_id = message.photo[
+        -1].file_id  # Получаем file_id для сохранения в БД
+    await state.update_data(photo=photo_file_id)
+
+    # Получаем все данные, которые собрали, для подтверждения
+    user_data = await state.get_data()
+    confirmation_text = (
+        f"Проверьте введенные данные:\n"
+        f"ФИО: {user_data['full_name']}\n"
+        f"Управляющая компания: {user_data['management_company']}\n"
+        f"Адрес дома: {user_data['address']}\n"
+        f"Тип отходов: {user_data['waste_type']}\n\n"
+        "Если все верно, нажмите 'Подтвердить'."
+    )
+    confirmation_keyboard = InlineKeyboardMarkup()
+    confirmation_keyboard.add(
+        InlineKeyboardButton(text="Подтвердить",
+                             callback_data="confirm_data")).add(
+        InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+    await message.answer_photo(photo=photo_file_id, caption=confirmation_text,
+                               reply_markup=confirmation_keyboard)
+    await KGMPickupStates.waiting_for_confirmation.set()
+    link_ya_disk = False
+    try:
+        downloaded_file = await download_photo(photo_file_id, bot)
+        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                  YA_DISK_FOLDER)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
+        await bot.send_message(DEV_TG_ID,
+            "Произошла ошибка при загрузке фото. Смотри логи.")
+    g_data = [
+              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              user_data['full_name'],
+              user_data['management_company'],
+              user_data['address'],
+              user_data['waste_type'],
+              ]
+    if link_ya_disk:
+        g_data.append(link_ya_disk)
+    try:
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+        losted_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке на GD. "
+                               "Смотри логи." + losted_data)
+
+
+@dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
+                           state=KGMPickupStates.waiting_for_confirmation)
+async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    # Логика сохранения заявки в базу данных здесь
+    await callback_query.message.answer(
+        "Спасибо! Ваша заявка принята.",
+        reply_markup=get_main_menu())
+    await state.finish()
+    await callback_query.answer()
+
+
 ##############################################################################
 ##################### Работа с сообщениями####################################
 ##############################################################################
@@ -177,7 +333,7 @@ async def random_text_message_answer(message: types.Message) -> None:
 
     На текстовое сообщение пользователя.
     """
-    text = choice(text_message_ansers)
+    text = choice(text_message_answers)
     await message.reply(text=text, reply_markup=get_main_menu())
 
 

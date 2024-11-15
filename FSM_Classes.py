@@ -2,16 +2,14 @@
 from aiogram.dispatcher.filters.state import StatesGroup, State
 
 
-class MessageStatesGroup(StatesGroup):
+class KGMPickupStates(StatesGroup):
     """Класс для приема заявок от пользователя."""
-
-    address = State()
-    name = State()
-    phone = State()
-    consumer_email = State()
-    question = State()
-    feedback = State()
-    confirmation = State()
+    waiting_for_full_name = State()
+    waiting_for_management_company = State()
+    waiting_for_address = State()
+    waiting_for_waste_type = State()
+    waiting_for_photo = State()
+    waiting_for_confirmation = State()
 
 
 class RegistrationStates(StatesGroup):
