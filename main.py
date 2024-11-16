@@ -16,7 +16,8 @@ from FSM_Classes import RegistrationStates, KGMPickupStates
 from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
                        download_photo)
-from database_functions import is_user_registered, register_user
+from database_functions import is_user_registered, register_user, \
+    save_kgm_request
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
     DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME)
 
@@ -329,6 +330,15 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     if link_ya_disk:
         g_data.append(link_ya_disk)
     g_data.append(user_data['username'])
+    # Сохраняем в базу данных заявку
+    try:
+        save_kgm_request('users.db', *g_data[2:])
+    except Exception as e:
+        logging.error(f"Ошибка при сохранении заявки в БД: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при сохранении заявки в БД. "
+                               "Смотри логи." + lost_data)
     try:
         upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
     except Exception as e:
