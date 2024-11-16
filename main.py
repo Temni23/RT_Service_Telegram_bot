@@ -217,6 +217,8 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
 
     # Переход в состояние ожидания ФИО
     await KGMPickupStates.waiting_for_full_name.set()
+    if isinstance(message, types.CallbackQuery):
+        await message.answer()
 
 
 @dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
