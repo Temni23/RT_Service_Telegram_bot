@@ -222,6 +222,14 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
 @dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
+    await message.answer("Теперь введите ваш номер телефона:",
+                         reply_markup=get_cancel())
+    await KGMPickupStates.waiting_for_phone_number.set()
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_phone_number)
+async def get_phone(message: types.Message, state: FSMContext):
+    await state.update_data(phone=message.text)
     await message.answer("Введите название вашей управляющей компании:",
                          reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_management_company.set()
@@ -262,12 +270,14 @@ async def get_photo(message: types.Message, state: FSMContext):
     photo_file_id = message.photo[
         -1].file_id  # Получаем file_id для сохранения в БД
     await state.update_data(photo=photo_file_id)
+    await state.update_data(username=message.from_user.username)
 
     # Получаем все данные, которые собрали, для подтверждения
     user_data = await state.get_data()
     confirmation_text = (
         f"Проверьте введенные данные:\n"
         f"ФИО: {user_data['full_name']}\n"
+        f"Телефон: {user_data['phone']}\n"
         f"Управляющая компания: {user_data['management_company']}\n"
         f"Адрес дома: {user_data['address']}\n"
         f"Тип отходов: {user_data['waste_type']}\n\n"
@@ -281,32 +291,7 @@ async def get_photo(message: types.Message, state: FSMContext):
     await message.answer_photo(photo=photo_file_id, caption=confirmation_text,
                                reply_markup=confirmation_keyboard)
     await KGMPickupStates.waiting_for_confirmation.set()
-    link_ya_disk = False
-    try:
-        downloaded_file = await download_photo(photo_file_id, bot)
-        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
-                                  YA_DISK_FOLDER)
-    except Exception as e:
-        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
-        await bot.send_message(DEV_TG_ID,
-            "Произошла ошибка при загрузке фото. Смотри логи.")
-    g_data = [
-              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-              user_data['full_name'],
-              user_data['management_company'],
-              user_data['address'],
-              user_data['waste_type'],
-              ]
-    if link_ya_disk:
-        g_data.append(link_ya_disk)
-    try:
-        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
-    except Exception as e:
-        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
-        lost_data = ' '.join(g_data)
-        await bot.send_message(DEV_TG_ID,
-                               "Произошла ошибка при загрузке на GD. "
-                               "Смотри логи." + lost_data)
+
 
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
@@ -319,6 +304,37 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu())
     await state.finish()
     await callback_query.answer()
+    # Сохраняем фото на ЯДиск
+    link_ya_disk = False
+    try:
+        downloaded_file = await download_photo(user_data['photo'], bot)
+        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                           YA_DISK_FOLDER)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке фото. Смотри логи.")
+    # Сохраняем заявку в ГТаблицу
+    g_data = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Телеграмм БОТ',
+        user_data['full_name'],
+        user_data['phone'],
+        user_data['management_company'],
+        user_data['address'],
+        user_data['waste_type']
+    ]
+    if link_ya_disk:
+        g_data.append(link_ya_disk)
+    g_data.append(user_data['username'])
+    try:
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке на GD. "
+                               "Смотри логи." + lost_data)
 
 
 ##############################################################################

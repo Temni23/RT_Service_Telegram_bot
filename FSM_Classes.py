@@ -5,6 +5,7 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 class KGMPickupStates(StatesGroup):
     """Класс для приема заявок от пользователя."""
     waiting_for_full_name = State()
+    waiting_for_phone_number = State()
     waiting_for_management_company = State()
     waiting_for_address = State()
     waiting_for_waste_type = State()
