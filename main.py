@@ -19,7 +19,8 @@ from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
 from database_functions import is_user_registered, register_user, \
     save_kgm_request
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
-    DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME)
+                      DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
+                      database_path)
 
 load_dotenv()
 
@@ -44,7 +45,7 @@ async def send_welcome(message: types.Message):
     Отрабатывает команду start.
     """
     user_id = message.from_user.id
-    if is_user_registered('users.db', user_id):
+    if is_user_registered(database_path, user_id):
         await message.reply("Добро пожаловать!, я приму вашу заявку",
                             reply_markup=get_main_menu())
     else:
@@ -97,7 +98,7 @@ async def start_registration(event: types.CallbackQuery | types.Message):
         logging.warning("Unknown event type")
         return
 
-    if is_user_registered('users.db', user_id):
+    if is_user_registered(database_path, user_id):
         await message.answer("Вы уже зарегистрированы! Я приму вашу заявку",
                              reply_markup=get_main_menu())
     else:
@@ -157,7 +158,7 @@ async def confirm_registration(callback_query: types.CallbackQuery,
     username = callback_query.from_user.username
 
     try:
-        register_user('users.db', user_id, full_name, phone_number, workplace,
+        register_user(database_path, user_id, full_name, phone_number, workplace,
                       username)
     except Exception as e:
         logging.error(
@@ -183,7 +184,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
     if isinstance(message, types.Message):
         # Обработчик для команды /kgm_request
         user_id = message.from_user.id
-        if is_user_registered('users.db', user_id):
+        if is_user_registered(database_path, user_id):
             await message.answer("Введите ваше Фамилию Имя Отчество:",
                                  reply_markup=get_cancel())
         else:
@@ -201,7 +202,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
     elif isinstance(message, types.CallbackQuery):
         # Обработчик для callback
         user_id = message.from_user.id
-        if is_user_registered('users.db', user_id):
+        if is_user_registered(database_path, user_id):
             await message.message.answer("Введите ваше Фамилию Имя Отчество:",
                                          reply_markup=get_cancel())
         else:
@@ -332,7 +333,7 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     g_data.append(user_data['username'])
     # Сохраняем в базу данных заявку
     try:
-        save_kgm_request('users.db', *g_data[2:])
+        save_kgm_request(database_path, *g_data[2:])
     except Exception as e:
         logging.error(f"Ошибка при сохранении заявки в БД: {e}")
         lost_data = ' '.join(g_data)

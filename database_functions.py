@@ -1,26 +1,42 @@
 """
 Функции для работы с базой данных.
 """
+import os
 import sqlite3
 import time
 
 
-def init_db(db_name: str):
+def init_db(database_folder: str, database_name: str) -> str:
     """
     Инициализирует базу данных.
+
+    Args:
+        database_folder (str): Путь к папке, где будет размещена база данных.
+        database_name (str): Имя файла базы данных.
+
+    Returns:
+        str: Полный путь к базе данных.
     """
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            full_name TEXT,
-            phone_number TEXT,
-            workplace TEXT,
-            username TEXT
-        )
-    ''')
-    cursor.execute('''
+    try:
+        # Создаём папку для базы данных, если её нет
+        os.makedirs(database_folder, exist_ok=True)
+
+        # Формируем полный путь к базе данных
+        db_path = os.path.join(database_folder, database_name)
+
+        # Подключаемся к базе и создаём таблицы
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                full_name TEXT,
+                phone_number TEXT,
+                workplace TEXT,
+                username TEXT
+            )
+        ''')
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS kgm_requests (
                 id INTEGER PRIMARY KEY,
                 timestamp INTEGER,
@@ -33,15 +49,19 @@ def init_db(db_name: str):
                 username TEXT
             )
         ''')
-    conn.commit()
-    conn.close()
+        conn.commit()
+        conn.close()
+        return db_path
+    except Exception as e:
+        print(f"Ошибка при инициализации базы данных: {e}")
+        raise
 
 
-def is_user_registered(db_name: str, user_id: int):
+def is_user_registered(db_path: str, user_id: int):
     """
     Проверка пользователя на наличие в базе данных.
     """
-    conn = sqlite3.connect(db_name)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
     result = cursor.fetchone()
@@ -49,11 +69,11 @@ def is_user_registered(db_name: str, user_id: int):
     return result is not None
 
 
-def register_user(db_name: str, user_id: int, full_name: str, phone_number:str, workplace: str, username: str):
+def register_user(db_path: str, user_id: int, full_name: str, phone_number:str, workplace: str, username: str):
     """
     Сохранение пользователя в базе данных.
     """
-    conn = sqlite3.connect(db_name)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO users (id, full_name, phone_number, workplace, username) VALUES (?, ?, ?, ?, ?)",
@@ -61,14 +81,14 @@ def register_user(db_name: str, user_id: int, full_name: str, phone_number:str, 
     conn.commit()
     conn.close()
 
-def save_kgm_request(db_name: str, full_name: str, phone_number: str,
+def save_kgm_request(db_path: str, full_name: str, phone_number: str,
                      management_company: str, address: str, waste_type: str,
                      photo_link: str, username: str):
     """
     Сохраняет заявку на вывоз КГМ в базу данных.
 
     Args:
-        db_name (str): Имя файла базы данных.
+        db_path (str): Имя файла базы данных.
         full_name (str): ФИО пользователя.
         phone_number (str): Номер телефона пользователя.
         management_company (str): Название управляющей компании.
@@ -77,7 +97,7 @@ def save_kgm_request(db_name: str, full_name: str, phone_number: str,
         photo_link (str): Ссылка на фото отходов.
         username (str): Username пользователя в Telegram.
     """
-    conn = sqlite3.connect(db_name)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
         timestamp = int(time.time())  # Текущее время в формате UNIX
