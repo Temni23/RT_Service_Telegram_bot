@@ -3,8 +3,7 @@ import os
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
-                           InputMediaPhoto)
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
 from aiogram.utils import executor
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
@@ -25,7 +24,7 @@ load_dotenv()
 
 API_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
@@ -304,10 +303,10 @@ async def get_photo(message: types.Message, state: FSMContext):
         upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
-        losted_data = ' '.join(g_data)
+        lost_data = ' '.join(g_data)
         await bot.send_message(DEV_TG_ID,
                                "Произошла ошибка при загрузке на GD. "
-                               "Смотри логи." + losted_data)
+                               "Смотри логи." + lost_data)
 
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
