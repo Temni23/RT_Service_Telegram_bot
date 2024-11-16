@@ -9,6 +9,7 @@ class KGMPickupStates(StatesGroup):
     waiting_for_management_company = State()
     waiting_for_address = State()
     waiting_for_waste_type = State()
+    waiting_for_comment = State()
     waiting_for_photo = State()
     waiting_for_confirmation = State()
 

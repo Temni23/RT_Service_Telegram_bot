@@ -45,6 +45,7 @@ def init_db(database_folder: str, database_name: str) -> str:
                 management_company TEXT,
                 adress TEXT,
                 waste_type TEXT,
+                comment TEXT,
                 photo_link TEXT,
                 username TEXT
             )
@@ -82,7 +83,7 @@ def register_user(db_path: str, user_id: int, full_name: str, phone_number:str, 
     conn.close()
 
 def save_kgm_request(db_path: str, full_name: str, phone_number: str,
-                     management_company: str, address: str, waste_type: str,
+                     management_company: str, address: str, waste_type: str, comment: str,
                      photo_link: str, username: str):
     """
     Сохраняет заявку на вывоз КГМ в базу данных.
@@ -94,6 +95,7 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         management_company (str): Название управляющей компании.
         address (str): Адрес дома.
         waste_type (str): Тип отходов.
+        comment: (str): Комментарий пользователя.
         photo_link (str): Ссылка на фото отходов.
         username (str): Username пользователя в Telegram.
     """
@@ -104,10 +106,10 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         cursor.execute('''
             INSERT INTO kgm_requests (
                 timestamp, full_name, phone_number, management_company, 
-                adress, waste_type, photo_link, username
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                adress, waste_type, comment, photo_link, username
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (timestamp, full_name, phone_number, management_company,
-              address, waste_type, photo_link, username))
+              address, waste_type, comment, photo_link, username))
         conn.commit()
     except sqlite3.Error as e:
         print(f"Ошибка при сохранении заявки: {e}")

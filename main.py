@@ -263,6 +263,17 @@ async def get_waste_type(callback_query: types.CallbackQuery,
     waste_type = callback_query.data.split(":")[1]
     await state.update_data(waste_type=waste_type)
     await callback_query.message.answer(
+        'При необходимости добавьте комментарий. Например: '
+        '"Мебель у третьего подъезда МКД". '
+        'Если в комментарии нет необходимости отправьте "Нет"',
+        reply_markup=get_cancel())
+    await KGMPickupStates.waiting_for_comment.set()
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_comment)
+async def get_comment(message: types.Message, state: FSMContext):
+    await state.update_data(comment=message.text)
+    await message.answer(
         "Отправьте фото отходов. В данный момент я могу сохранить одну фотографию.",
         reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_photo.set()
@@ -285,6 +296,7 @@ async def get_photo(message: types.Message, state: FSMContext):
         f"Управляющая компания: {user_data['management_company']}\n"
         f"Адрес дома: {user_data['address']}\n"
         f"Тип отходов: {user_data['waste_type']}\n\n"
+        f"Комментарий: {user_data['comment']}\n\n"
         "Если все верно, нажмите 'Подтвердить'."
     )
     confirmation_keyboard = InlineKeyboardMarkup()
@@ -326,7 +338,8 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         user_data['phone'],
         user_data['management_company'],
         user_data['address'],
-        user_data['waste_type']
+        user_data['waste_type'],
+        user_data['comment']
     ]
     if link_ya_disk:
         g_data.append(link_ya_disk)
