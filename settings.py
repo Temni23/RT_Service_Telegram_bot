@@ -9,7 +9,7 @@ from database_functions import init_db
 
 load_dotenv()
 
-init_db('users.db')
+database_path = init_db('database', 'users.db')
 
 #Создаем клиент яндекса
 YANDEX_CLIENT = yadisk.Client(token=os.getenv('YA_DISK_TOKEN'))
