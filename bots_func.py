@@ -6,28 +6,17 @@
 
 """
 
-import logging
 import os
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from logging.handlers import RotatingFileHandler
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-# handler = RotatingFileHandler("logs/main_logs.log", encoding="UTF-8")
-# formatter = logging.Formatter(
-#     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-# )
-# handler.setFormatter(formatter)
-# logger.addHandler(handler)
 
 
 async def download_photo(file_id: str, bot) -> bytes:
@@ -46,6 +35,7 @@ def get_cancel() -> InlineKeyboardMarkup:
     keyboard.add(button)
     return keyboard
 
+
 def get_main_menu() -> InlineKeyboardMarkup:
     """Формирует и возвращает Inline клавиатуру, главное меню.
 
@@ -53,11 +43,9 @@ def get_main_menu() -> InlineKeyboardMarkup:
     """
     keyboard = InlineKeyboardMarkup()
     button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
-                                   callback_data='kgm_request')
+                                  callback_data='kgm_request')
     keyboard.add(button)
     return keyboard
-
-
 
 
 def get_waste_type_keyboard() -> InlineKeyboardMarkup:
@@ -65,7 +53,8 @@ def get_waste_type_keyboard() -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup()
     waste_types = ["РСО", "КГМ", "Листва в мешках", "Ветки 0,7м"]
     for waste_type in waste_types:
-        keyboard.add(InlineKeyboardButton(text=waste_type, callback_data=f"waste_type:{waste_type}"))
+        keyboard.add(InlineKeyboardButton(text=waste_type,
+                                          callback_data=f"waste_type:{waste_type}"))
     return keyboard
 
 

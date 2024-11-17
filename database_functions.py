@@ -70,7 +70,8 @@ def is_user_registered(db_path: str, user_id: int):
     return result is not None
 
 
-def register_user(db_path: str, user_id: int, full_name: str, phone_number:str, workplace: str, username: str):
+def register_user(db_path: str, user_id: int, full_name: str,
+                  phone_number: str, workplace: str, username: str):
     """
     Сохранение пользователя в базе данных.
     """
@@ -82,8 +83,10 @@ def register_user(db_path: str, user_id: int, full_name: str, phone_number:str, 
     conn.commit()
     conn.close()
 
+
 def save_kgm_request(db_path: str, full_name: str, phone_number: str,
-                     management_company: str, address: str, waste_type: str, comment: str,
+                     management_company: str, address: str, waste_type: str,
+                     comment: str,
                      photo_link: str, username: str):
     """
     Сохраняет заявку на вывоз КГМ в базу данных.
