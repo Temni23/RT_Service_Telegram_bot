@@ -107,19 +107,19 @@ async def start_registration(event: types.CallbackQuery | types.Message):
                              "Я приму вашу заявку \U0001F69B",
                              reply_markup=get_main_menu())
     else:
-        await message.answer(text = "Начнем! \nОтветным сообщением направляйте"
-                               " мне нужную "
-                               "информацию, а я ее обработаю. "
-                               "\nПожалуйста, вводите "
-                               "верные данные, это очень важно для "
-                               "эффективность моей работы. \n\n"
-                               "1/3 Напишите Вашу Фамилию Имя и Отчество",
-        reply_markup=get_cancel())
+        await message.answer(text="Начнем! \nОтветным сообщением направляйте"
+                                  " мне нужную "
+                                  "информацию, а я ее обработаю. "
+                                  "\nПожалуйста, вводите "
+                                  "верные данные, это очень важно для "
+                                  "эффективность моей работы. \n\n"
+                                  "1/3 Напишите Вашу Фамилию Имя и Отчество",
+                             reply_markup=get_cancel())
     await RegistrationStates.waiting_for_full_name.set()
 
 
 @dp.message_handler(lambda message: len(message.text) < 10,
-                            state=RegistrationStates.waiting_for_full_name)
+                    state=RegistrationStates.waiting_for_full_name)
 async def check_name(message: types.Message) -> None:
     """Проверяет ФИО на количество символов."""
     await message.answer(
@@ -131,9 +131,10 @@ async def check_name(message: types.Message) -> None:
 @dp.message_handler(state=RegistrationStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer('2/3 \U0000260E Введите номер своего контактного телефона через "8" без '
-             'пробелов, тире и прочих лишних знаков. Например "89231234567"',
-                         reply_markup=get_cancel())
+    await message.answer(
+        '2/3 \U0000260E Введите номер своего контактного телефона через "8" без '
+        'пробелов, тире и прочих лишних знаков. Например "89231234567"',
+        reply_markup=get_cancel())
     await RegistrationStates.waiting_for_phone_number.set()
 
 
@@ -147,20 +148,18 @@ async def get_phone_number(message: types.Message, state: FSMContext):
                          reply_markup=get_cancel())
     await RegistrationStates.waiting_for_workplace.set()
 
+
 @dp.message_handler(state=RegistrationStates.waiting_for_phone_number)
 async def check_phone(message: types.Message) -> None:
-    """
-    Проверяет номер телефона введенный пользователем.
-
-    Функция отрабатывает если введено не соответсвующее паттерну get_email.
-    """
+    """Проверяет номер телефона введенный пользователем."""
     await message.answer(
         "Введите корректный номер телефона без пробелов, скобок и тире."
         "Например: 89081234567",
         reply_markup=get_cancel())
 
+
 @dp.message_handler(lambda message: len(message.text) < 5,
-                            state=RegistrationStates.waiting_for_workplace)
+                    state=RegistrationStates.waiting_for_workplace)
 async def check_workplace(message: types.Message) -> None:
     """Проверяет адрес введенное пользователем место работы на количество символов."""
     await message.answer(
@@ -201,7 +200,8 @@ async def confirm_registration(callback_query: types.CallbackQuery,
     username = callback_query.from_user.username
 
     try:
-        register_user(database_path, user_id, full_name, phone_number, workplace,
+        register_user(database_path, user_id, full_name, phone_number,
+                      workplace,
                       username)
     except Exception as e:
         logging.error(e)
@@ -209,7 +209,6 @@ async def confirm_registration(callback_query: types.CallbackQuery,
                                f"Произошла ошибка при регистрации пользователя "
                                f"{user_id}, {full_name}, {phone_number}, "
                                f"{workplace}, {username}")
-
 
     await callback_query.message.answer(
         "Вы успешно зарегистрированы и теперь можете пользоваться ботом!",
@@ -232,14 +231,15 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
         # Обработчик для команды /kgm_request
         user_id = message.from_user.id
         if is_user_registered(database_path, user_id):
-            await message.answer(text = "Начнем! \nОтветным сообщением направляйте"
-                               " мне нужную "
-                               "информацию, а я ее обработаю. "
-                               "\nПожалуйста, вводите "
-                               "верные данные, это очень важно для "
-                               "эффективность моей работы. \n\n"
-                               "1/7 Напишите Вашу Фамилию Имя и Отчество",
-                                 reply_markup=get_cancel())
+            await message.answer(
+                text="Начнем! \nОтветным сообщением направляйте"
+                     " мне нужную "
+                     "информацию, а я ее обработаю. "
+                     "\nПожалуйста, вводите "
+                     "верные данные, это очень важно для "
+                     "эффективность моей работы. \n\n"
+                     "1/7 Напишите Вашу Фамилию Имя и Отчество",
+                reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Зарегистрироваться",
@@ -256,14 +256,15 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
         # Обработчик для callback
         user_id = message.from_user.id
         if is_user_registered(database_path, user_id):
-            await message.message.answer(text = "Начнем! \nОтветным сообщением направляйте"
-                               " мне нужную "
-                               "информацию, а я ее обработаю. "
-                               "\nПожалуйста, вводите "
-                               "верные данные, это очень важно для "
-                               "эффективность моей работы. \n\n"
-                               "1/7 Напишите Вашу Фамилию Имя и Отчество",
-                                         reply_markup=get_cancel())
+            await message.message.answer(
+                text="Начнем! \U0001F60E \nОтветным сообщением направляйте"
+                     " мне нужную "
+                     "информацию, а я ее обработаю. "
+                     "\nПожалуйста, вводите "
+                     "верные данные, это очень важно для "
+                     "эффективность моей работы. \n\n"
+                     "1/7 Напишите Вашу Фамилию Имя и Отчество",
+                reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Зарегистрироваться",
@@ -283,7 +284,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
 
 
 @dp.message_handler(lambda message: len(message.text) < 10,
-                            state=KGMPickupStates.waiting_for_full_name)
+                    state=KGMPickupStates.waiting_for_full_name)
 async def kgm_check_name(message: types.Message) -> None:
     """Проверяет ФИО на количество символов."""
     await message.answer(
@@ -295,28 +296,28 @@ async def kgm_check_name(message: types.Message) -> None:
 @dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer('2/7 \U0000260E Введите номер своего контактного телефона через "8" без '
-             'пробелов, тире и прочих лишних знаков. Например "89231234567"',
-                         reply_markup=get_cancel())
+    await message.answer(
+        '2/7 \U0000260E Введите номер своего контактного телефона через "8" без '
+        'пробелов, тире и прочих лишних знаков. Например "89231234567"',
+        reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_phone_number.set()
 
 
-@dp.message_handler(regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$',
-                    state=KGMPickupStates.waiting_for_phone_number)
+@dp.message_handler(
+    regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$',
+    state=KGMPickupStates.waiting_for_phone_number)
 async def get_phone(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text)
-    await message.answer("3/7 Введите название Вашей управляющей компании:",
-                         reply_markup=get_cancel())
+    await message.answer(
+        "3/7 \U00002764 Введите название Вашей управляющей компании:",
+        reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_management_company.set()
-
 
 
 @dp.message_handler(state=KGMPickupStates.waiting_for_phone_number)
 async def kgm_check_phone(message: types.Message) -> None:
     """
     Проверяет номер телефона введенный пользователем.
-
-    Функция отрабатывает если введено не соответсвующее паттерну get_email.
     """
     await message.answer(
         "Введите корректный номер телефона без пробелов, скобок и тире."
@@ -325,25 +326,26 @@ async def kgm_check_phone(message: types.Message) -> None:
 
 
 @dp.message_handler(lambda message: len(message.text) < 5,
-                            state=KGMPickupStates.waiting_for_management_company)
+                    state=KGMPickupStates.waiting_for_management_company)
 async def kgm_check_workplace(message: types.Message) -> None:
     """Проверяет адрес введенное пользователем место работы на количество символов."""
     await message.answer(
-        'Введите чуть больше информации. Пример: ООО "ЖКХ"',
+        ' \U00002757 Введите чуть больше информации. Пример: ООО "ЖКХ"',
         reply_markup=get_cancel())
 
 
 @dp.message_handler(state=KGMPickupStates.waiting_for_management_company)
 async def get_management_company(message: types.Message, state: FSMContext):
     await state.update_data(management_company=message.text)
-    await message.answer("4/7 Напишите адрес для вывоза в формате \U00002757 Город, Улица,"
-                               " Дом \U00002757:",
-                         reply_markup=get_cancel())
+    await message.answer(
+        "4/7 Напишите адрес для вывоза в формате \U00002757 Город, Улица,"
+        " Дом \U00002757:",
+        reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_address.set()
 
 
 @dp.message_handler(lambda message: len(message.text) < 10,
-                            state=KGMPickupStates.waiting_for_address)
+                    state=KGMPickupStates.waiting_for_address)
 async def kgm_check_address(message: types.Message) -> None:
     """Проверяет адрес введенный пользователем на количество символов."""
     await message.answer(
@@ -369,7 +371,7 @@ async def get_waste_type(callback_query: types.CallbackQuery,
     waste_type = callback_query.data.split(":")[1]
     await state.update_data(waste_type=waste_type)
     await callback_query.message.answer(
-        '6/7 При необходимости добавьте комментарий. Например: '
+        '6/7 \U0001F5E8 При необходимости добавьте комментарий. Например: '
         '"Мебель у третьего подъезда МКД". '
         'Если в комментарии нет необходимости отправьте "Нет"',
         reply_markup=get_cancel())
@@ -380,7 +382,8 @@ async def get_waste_type(callback_query: types.CallbackQuery,
 async def get_comment(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
     await message.answer(
-        "7/7 Отправьте фото отходов. В данный момент я могу сохранить одну фотографию.",
+        "7/7 \U0001F381 Отправьте фото отходов. "
+        "Много не нужно, достаточно одну фотографию.",
         reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_photo.set()
 
@@ -398,11 +401,11 @@ async def get_photo(message: types.Message, state: FSMContext):
     confirmation_text = (
         f"Проверьте введенные данные:\n"
         f"ФИО: {user_data['full_name']}\n"
-        f"Телефон: {user_data['phone']}\n"
-        f"Управляющая компания: {user_data['management_company']}\n"
-        f"Адрес дома: {user_data['address']}\n"
+        f"\U0000260E Телефон: {user_data['phone']}\n"
+        f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+        f"\U00002757 Адрес дома: {user_data['address']}\n"
         f"Тип отходов: {user_data['waste_type']}\n\n"
-        f"Комментарий: {user_data['comment']}\n\n"
+        f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
         "Если все верно, нажмите 'Подтвердить'."
     )
     confirmation_keyboard = InlineKeyboardMarkup()
@@ -415,14 +418,13 @@ async def get_photo(message: types.Message, state: FSMContext):
     await KGMPickupStates.waiting_for_confirmation.set()
 
 
-
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
                            state=KGMPickupStates.waiting_for_confirmation)
 async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     # Логика сохранения заявки в базу данных здесь
     await callback_query.message.answer(
-        "Спасибо! Ваша заявка принята.",
+        "Спасибо! Ваша заявка принята \U0001F9D9",
         reply_markup=get_main_menu())
     await state.finish()
     await callback_query.answer()
