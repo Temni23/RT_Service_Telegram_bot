@@ -20,13 +20,24 @@ from database_functions import is_user_registered, register_user, \
     save_kgm_request
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
-                      database_path)
+                      database_path, log_file)
 
 load_dotenv()
 
-API_TOKEN = os.getenv('TELEGRAM_TOKEN')
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,  # Уровень логирования
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Формат записи
+    handlers=[
+        logging.FileHandler(log_file, mode="a", encoding="utf-8"),  # Логи в файл
+        logging.StreamHandler()  # Логи в консоль
+    ]
+)
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)  # Создаём объект логгера
+logger.info("Логи будут сохраняться в файл: %s", log_file)
+
+API_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
