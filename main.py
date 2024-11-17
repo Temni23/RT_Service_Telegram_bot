@@ -46,7 +46,8 @@ async def send_welcome(message: types.Message):
     """
     user_id = message.from_user.id
     if is_user_registered(database_path, user_id):
-        await message.reply("Добро пожаловать!, я приму вашу заявку",
+        await message.reply("Добро пожаловать! "
+                            "Я приму вашу заявку на вывоз КГМ \U0001F69B",
                             reply_markup=get_main_menu())
     else:
         keyboard = InlineKeyboardMarkup().add(
@@ -54,7 +55,9 @@ async def send_welcome(message: types.Message):
                                  callback_data="register")
         )
         await message.reply(
-            "Добро пожаловать! Похоже, вы новый пользователь. Нажмите кнопку ниже для регистрации.",
+            "Добро пожаловать! Похоже, вы новый пользователь. "
+            "Нажмите кнопку ниже для регистрации. "
+            "Это не займет много времени \U0001F64F\U0001F64F\U0001F64F",
             reply_markup=keyboard
         )
 
@@ -69,7 +72,8 @@ async def cmd_cancel(callback: types.CallbackQuery, state: FSMContext) -> None:
 
     if current_state is not None:
         await state.finish()
-        await callback.message.answer("Вы отменили текущую операцию.",
+        await callback.message.answer("Вы отменили текущую операцию. "
+                                      "Давайте начнем заново",
                                       reply_markup=get_main_menu())
     else:
         await callback.message.answer(
@@ -99,30 +103,69 @@ async def start_registration(event: types.CallbackQuery | types.Message):
         return
 
     if is_user_registered(database_path, user_id):
-        await message.answer("Вы уже зарегистрированы! Я приму вашу заявку",
+        await message.answer("Вы уже зарегистрированы! "
+                             "Я приму вашу заявку \U0001F69B",
                              reply_markup=get_main_menu())
     else:
-        await message.answer(
-            "Пожалуйста, введите ваше полное имя (Фамилия Имя Отчество):",
-            reply_markup=get_cancel()
-        )
+        await message.answer(text = "Начнем! \nОтветным сообщением направляйте"
+                               " мне нужную "
+                               "информацию, а я ее обработаю. "
+                               "\nПожалуйста, вводите "
+                               "верные данные, это очень важно для "
+                               "эффективность моей работы. \n\n"
+                               "1/3 Напишите Вашу Фамилию Имя и Отчество",
+        reply_markup=get_cancel())
     await RegistrationStates.waiting_for_full_name.set()
+
+
+@dp.message_handler(lambda message: len(message.text) < 10,
+                            state=RegistrationStates.waiting_for_full_name)
+async def check_name(message: types.Message) -> None:
+    """Проверяет ФИО на количество символов."""
+    await message.answer(
+        "Введите реальные ФИО в формате \n \U00002757 Фамилия Имя Отчество "
+        "Это чрезвычайно важно.",
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=RegistrationStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer("Теперь введите ваш номер телефона:",
+    await message.answer('2/3 \U0000260E Введите номер своего контактного телефона через "8" без '
+             'пробелов, тире и прочих лишних знаков. Например "89231234567"',
                          reply_markup=get_cancel())
     await RegistrationStates.waiting_for_phone_number.set()
 
 
-@dp.message_handler(state=RegistrationStates.waiting_for_phone_number)
+@dp.message_handler(state=RegistrationStates.waiting_for_phone_number,
+                    regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$')
 async def get_phone_number(message: types.Message, state: FSMContext):
+    """Функция отрабатывает если пользователь ввел валидный телефон."""
     await state.update_data(phone_number=message.text)
-    await message.answer("Теперь укажите ваше место работы:",
+    await message.answer("3/3 Теперь укажите УК, ТСЖ, ТСН "
+                         "или иное Ваше место работы:",
                          reply_markup=get_cancel())
     await RegistrationStates.waiting_for_workplace.set()
+
+@dp.message_handler(state=RegistrationStates.waiting_for_phone_number)
+async def check_phone(message: types.Message) -> None:
+    """
+    Проверяет номер телефона введенный пользователем.
+
+    Функция отрабатывает если введено не соответсвующее паттерну get_email.
+    """
+    await message.answer(
+        "Введите корректный номер телефона без пробелов, скобок и тире."
+        "Например: 89081234567",
+        reply_markup=get_cancel())
+
+@dp.message_handler(lambda message: len(message.text) < 5,
+                            state=RegistrationStates.waiting_for_workplace)
+async def check_workplace(message: types.Message) -> None:
+    """Проверяет адрес введенное пользователем место работы на количество символов."""
+    await message.answer(
+        'Введите чуть больше информации. Пример: ООО "ЖКХ"',
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=RegistrationStates.waiting_for_workplace)
@@ -137,7 +180,7 @@ async def get_workplace(message: types.Message, state: FSMContext):
     keyboad = get_cancel()
     keyboad.add(InlineKeyboardButton(text='ВСЕ ВЕРНО!', callback_data='Верно'))
     await message.answer(
-        f"Проверьте ваши данные:\n"
+        f"Проверьте информацию:\n"
         f"ФИО: {full_name}\n"
         f"Номер телефона: {phone_number}\n"
         f"Место работы: {workplace}\n\n"
@@ -161,8 +204,12 @@ async def confirm_registration(callback_query: types.CallbackQuery,
         register_user(database_path, user_id, full_name, phone_number, workplace,
                       username)
     except Exception as e:
-        logging.error(
-            e)  # TODO: Можно отправить сообщение об ошибке разработчику
+        logging.error(e)
+        await bot.send_message(DEV_TG_ID,
+                               f"Произошла ошибка при регистрации пользователя "
+                               f"{user_id}, {full_name}, {phone_number}, "
+                               f"{workplace}, {username}")
+
 
     await callback_query.message.answer(
         "Вы успешно зарегистрированы и теперь можете пользоваться ботом!",
