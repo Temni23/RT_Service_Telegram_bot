@@ -232,7 +232,13 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
         # Обработчик для команды /kgm_request
         user_id = message.from_user.id
         if is_user_registered(database_path, user_id):
-            await message.answer("Введите ваше Фамилию Имя Отчество:",
+            await message.answer(text = "Начнем! \nОтветным сообщением направляйте"
+                               " мне нужную "
+                               "информацию, а я ее обработаю. "
+                               "\nПожалуйста, вводите "
+                               "верные данные, это очень важно для "
+                               "эффективность моей работы. \n\n"
+                               "1/7 Напишите Вашу Фамилию Имя и Отчество",
                                  reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
@@ -250,7 +256,13 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
         # Обработчик для callback
         user_id = message.from_user.id
         if is_user_registered(database_path, user_id):
-            await message.message.answer("Введите ваше Фамилию Имя Отчество:",
+            await message.message.answer(text = "Начнем! \nОтветным сообщением направляйте"
+                               " мне нужную "
+                               "информацию, а я ее обработаю. "
+                               "\nПожалуйста, вводите "
+                               "верные данные, это очень важно для "
+                               "эффективность моей работы. \n\n"
+                               "1/7 Напишите Вашу Фамилию Имя и Отчество",
                                          reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
@@ -270,34 +282,81 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
         await message.answer()
 
 
+@dp.message_handler(lambda message: len(message.text) < 10,
+                            state=KGMPickupStates.waiting_for_full_name)
+async def kgm_check_name(message: types.Message) -> None:
+    """Проверяет ФИО на количество символов."""
+    await message.answer(
+        "Введите реальные ФИО в формате \n \U00002757 Фамилия Имя Отчество "
+        "Это чрезвычайно важно.",
+        reply_markup=get_cancel())
+
+
 @dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
-    await message.answer("Теперь введите ваш номер телефона:",
+    await message.answer('2/7 \U0000260E Введите номер своего контактного телефона через "8" без '
+             'пробелов, тире и прочих лишних знаков. Например "89231234567"',
                          reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_phone_number.set()
 
 
-@dp.message_handler(state=KGMPickupStates.waiting_for_phone_number)
+@dp.message_handler(regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$',
+                    state=KGMPickupStates.waiting_for_phone_number)
 async def get_phone(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text)
-    await message.answer("Введите название вашей управляющей компании:",
+    await message.answer("3/7 Введите название Вашей управляющей компании:",
                          reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_management_company.set()
+
+
+
+@dp.message_handler(state=KGMPickupStates.waiting_for_phone_number)
+async def kgm_check_phone(message: types.Message) -> None:
+    """
+    Проверяет номер телефона введенный пользователем.
+
+    Функция отрабатывает если введено не соответсвующее паттерну get_email.
+    """
+    await message.answer(
+        "Введите корректный номер телефона без пробелов, скобок и тире."
+        "Например: 89081234567",
+        reply_markup=get_cancel())
+
+
+@dp.message_handler(lambda message: len(message.text) < 5,
+                            state=KGMPickupStates.waiting_for_management_company)
+async def kgm_check_workplace(message: types.Message) -> None:
+    """Проверяет адрес введенное пользователем место работы на количество символов."""
+    await message.answer(
+        'Введите чуть больше информации. Пример: ООО "ЖКХ"',
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=KGMPickupStates.waiting_for_management_company)
 async def get_management_company(message: types.Message, state: FSMContext):
     await state.update_data(management_company=message.text)
-    await message.answer("Введите адрес вашего дома:",
+    await message.answer("4/7 Напишите адрес для вывоза в формате \U00002757 Город, Улица,"
+                               " Дом \U00002757:",
                          reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_address.set()
+
+
+@dp.message_handler(lambda message: len(message.text) < 10,
+                            state=KGMPickupStates.waiting_for_address)
+async def check_address(message: types.Message) -> None:
+    """Проверяет адрес введенный пользователем на количество символов."""
+    await message.answer(
+        'Введите правильный адрес в формате \n \U00002757 Город, Улица,'
+        ' Дом \U00002757 \nЭто чрезвычайно важно для корректной '
+        'работы с Вашим вопросом. \n Пример "Красноярск ул. Тельмана д. 1"',
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=KGMPickupStates.waiting_for_address)
 async def get_address(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
-    await message.answer("Выберите тип отходов:",
+    await message.answer("5/7 Выберите тип отходов:",
                          reply_markup=get_waste_type_keyboard())
     await KGMPickupStates.waiting_for_waste_type.set()
 
@@ -310,7 +369,7 @@ async def get_waste_type(callback_query: types.CallbackQuery,
     waste_type = callback_query.data.split(":")[1]
     await state.update_data(waste_type=waste_type)
     await callback_query.message.answer(
-        'При необходимости добавьте комментарий. Например: '
+        '6/7 При необходимости добавьте комментарий. Например: '
         '"Мебель у третьего подъезда МКД". '
         'Если в комментарии нет необходимости отправьте "Нет"',
         reply_markup=get_cancel())
@@ -321,7 +380,7 @@ async def get_waste_type(callback_query: types.CallbackQuery,
 async def get_comment(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
     await message.answer(
-        "Отправьте фото отходов. В данный момент я могу сохранить одну фотографию.",
+        "7/7 Отправьте фото отходов. В данный момент я могу сохранить одну фотографию.",
         reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_photo.set()
 
