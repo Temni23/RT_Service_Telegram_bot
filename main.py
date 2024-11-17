@@ -344,7 +344,7 @@ async def get_management_company(message: types.Message, state: FSMContext):
 
 @dp.message_handler(lambda message: len(message.text) < 10,
                             state=KGMPickupStates.waiting_for_address)
-async def check_address(message: types.Message) -> None:
+async def kgm_check_address(message: types.Message) -> None:
     """Проверяет адрес введенный пользователем на количество символов."""
     await message.answer(
         'Введите правильный адрес в формате \n \U00002757 Город, Улица,'
