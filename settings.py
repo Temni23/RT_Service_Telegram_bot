@@ -9,6 +9,10 @@ from database_functions import init_db
 
 load_dotenv()
 
+# Настройка логирования
+log_folder = "logs"
+log_file = os.path.join(log_folder, "bot.log")
+
 database_path = init_db('database', 'users.db')
 
 #Создаем клиент яндекса

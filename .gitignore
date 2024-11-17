@@ -165,3 +165,5 @@ g_key/test-sheets-441605-e2c77cd3bfdc.json
 database/users.db
 database/
 g_key/
+logs/
+bot.log
