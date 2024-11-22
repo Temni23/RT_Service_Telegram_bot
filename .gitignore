@@ -167,3 +167,4 @@ database/
 g_key/
 logs/
 bot.log
+docker-compose.yml

@@ -1,8 +1,6 @@
 venv
 .git
 *.log
-constants/constants.py
-contacts/contacts.json
 .env
 .venv
 
