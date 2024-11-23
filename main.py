@@ -10,7 +10,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from FSM_Classes import RegistrationStates, KGMPickupStates
 from api_functions import upload_and_get_link, upload_information_to_gsheets
@@ -21,7 +21,7 @@ from database_functions import is_user_registered, register_user, \
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file, waste_types, district_names,
-                      districts_tz)
+                      districts_tz, TIMEDELTA)
 
 load_dotenv()
 
@@ -431,7 +431,7 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     coast = get_coast_name(districts_tz,user_data['district'])
     # Сохраняем заявку в ГТаблицу
     g_data = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime("%Y-%m-%d %H:%M:%S"),
         'Телеграмм БОТ',
         user_info['full_name'],
         user_info['phone_number'],

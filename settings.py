@@ -31,6 +31,7 @@ GOOGLE_SHEET_NAME = {'left': GOOGLE_SHEET_NAME_LEFT,
                      'right': GOOGLE_SHEET_NAME_RIGHT}
 
 DEV_TG_ID = os.getenv('DEV_TG_ID')
+TIMEDELTA = int(os.getenv('TIMEDELTA'))
 
 text_message_answers = [
     'Я могу отвечать только на вопросы выбранные из меню. Воспользуйтесь им пожалуйста.',
