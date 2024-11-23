@@ -58,6 +58,17 @@ def get_waste_type_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
+def get_district_name() -> InlineKeyboardMarkup:
+    """Формирует и возвращает Inline клавиатуру с именами районов."""
+    keyboard = InlineKeyboardMarkup()
+    district_names = ["Ленинский", "Кировский", "Свердловский", "Советский",
+                   "Центральный", "Железнодорожный", "Октябрьский"]
+    for district in district_names:
+        keyboard.add(InlineKeyboardButton(text=district,
+                                          callback_data=f"district:{district}"))
+    return keyboard
+
+
 async def send_email(message_text, target_email):
     """Отправляет письмо на заданную почту."""
     email = os.getenv("EMAIL")
