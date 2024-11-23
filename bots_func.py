@@ -48,25 +48,25 @@ def get_main_menu() -> InlineKeyboardMarkup:
     return keyboard
 
 
-def get_waste_type_keyboard() -> InlineKeyboardMarkup:
+def get_waste_type_keyboard(waste_types: list) -> InlineKeyboardMarkup:
     """Формирует и возвращает Inline клавиатуру с типами отходов."""
     keyboard = InlineKeyboardMarkup()
-    waste_types = ["РСО", "КГМ", "Листва в мешках", "Ветки 0,7м"]
     for waste_type in waste_types:
         keyboard.add(InlineKeyboardButton(text=waste_type,
                                           callback_data=f"waste_type:{waste_type}"))
     return keyboard
 
 
-def get_district_name() -> InlineKeyboardMarkup:
+def get_district_name(district_names: list) -> InlineKeyboardMarkup:
     """Формирует и возвращает Inline клавиатуру с именами районов."""
     keyboard = InlineKeyboardMarkup()
-    district_names = ["Ленинский", "Кировский", "Свердловский", "Советский",
-                   "Центральный", "Железнодорожный", "Октябрьский"]
     for district in district_names:
         keyboard.add(InlineKeyboardButton(text=district,
                                           callback_data=f"district:{district}"))
     return keyboard
+
+def get_coast_name(districts:dict[str: str], district_name) -> str:
+    return districts.get(district_name)
 
 
 async def send_email(message_text, target_email):
