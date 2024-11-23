@@ -386,8 +386,6 @@ async def get_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     confirmation_text = (
         f"Проверьте введенные данные:\n"
-        # f"ФИО: {user_data['full_name']}\n"
-        #   f"\U0000260E Телефон: {user_data['phone']}\n"
         f"\U000026A0 Район: {user_data['district']}\n"
         f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
         f"\U00002757 Адрес дома: {user_data['address']}\n"
