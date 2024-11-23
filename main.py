@@ -17,7 +17,7 @@ from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
                        download_photo, get_district_name)
 from database_functions import is_user_registered, register_user, \
-    save_kgm_request
+    save_kgm_request, get_user_by_id
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file)
@@ -424,14 +424,17 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
         await bot.send_message(DEV_TG_ID,
                                "Произошла ошибка при загрузке фото. Смотри логи.")
+    # Получаем информацию о пользователе из базы данных
+    user_info = get_user_by_id(user_id, database_path)
     # Сохраняем заявку в ГТаблицу
     g_data = [
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'Телеграмм БОТ',
-        user_data['full_name'],
-        user_data['phone'],
+        user_info['full_name'],
+        user_info['phone_number'],
         user_data['management_company'],
         user_data['address'],
+        user_data['district'],
         user_data['waste_type'],
         user_data['comment']
     ]

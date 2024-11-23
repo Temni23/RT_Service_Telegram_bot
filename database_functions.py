@@ -44,6 +44,7 @@ def init_db(database_folder: str, database_name: str) -> str:
                 phone_number TEXT,
                 management_company TEXT,
                 adress TEXT,
+                district TEXT,
                 waste_type TEXT,
                 comment TEXT,
                 photo_link TEXT,
@@ -85,9 +86,9 @@ def register_user(db_path: str, user_id: int, full_name: str,
 
 
 def save_kgm_request(db_path: str, full_name: str, phone_number: str,
-                     management_company: str, address: str, waste_type: str,
-                     comment: str,
-                     photo_link: str, username: str):
+                     management_company: str, address: str, district: str,
+                     waste_type: str, comment: str, photo_link: str,
+                     username: str):
     """
     Сохраняет заявку на вывоз КГМ в базу данных.
 
@@ -97,6 +98,7 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         phone_number (str): Номер телефона пользователя.
         management_company (str): Название управляющей компании.
         address (str): Адрес дома.
+        district (str): Адрес дома.
         waste_type (str): Тип отходов.
         comment: (str): Комментарий пользователя.
         photo_link (str): Ссылка на фото отходов.
@@ -109,12 +111,52 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         cursor.execute('''
             INSERT INTO kgm_requests (
                 timestamp, full_name, phone_number, management_company, 
-                adress, waste_type, comment, photo_link, username
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                adress, district, waste_type, comment, photo_link, username
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (timestamp, full_name, phone_number, management_company,
-              address, waste_type, comment, photo_link, username))
+              address, district, waste_type, comment, photo_link, username))
         conn.commit()
     except sqlite3.Error as e:
         print(f"Ошибка при сохранении заявки: {e}")
     finally:
         conn.close()
+
+
+import sqlite3
+
+
+def get_user_by_id(user_id: int, db_path: str) -> dict:
+    """
+    Получает информацию о пользователе из базы данных по user_id.
+
+    Args:
+        user_id (int): Идентификатор пользователя.
+        db_path (str): Путь к базе данных SQLite.
+
+    Returns:
+        dict: Словарь с информацией о пользователе. Если пользователь не найден, возвращается пустой словарь.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            'SELECT id, full_name, phone_number, workplace, username FROM users WHERE id = ?',
+            (user_id,))
+        row = cursor.fetchone()
+
+        if row:
+            user_data = {
+                "id": row[0],
+                "full_name": row[1],
+                "phone_number": row[2],
+                "workplace": row[3],
+                "username": row[4],
+            }
+        else:
+            user_data = {}  # Возвращаем пустой словарь, если пользователь не найден
+
+    finally:
+        conn.close()
+
+    return user_data
