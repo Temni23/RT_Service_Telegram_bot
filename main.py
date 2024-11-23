@@ -10,26 +10,29 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from FSM_Classes import RegistrationStates, KGMPickupStates
 from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
-                       download_photo)
+                       download_photo, get_district_name, get_coast_name)
 from database_functions import is_user_registered, register_user, \
-    save_kgm_request
+    save_kgm_request, get_user_by_id
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
-                      database_path, log_file)
+                      database_path, log_file, waste_types, district_names,
+                      districts_tz, TIMEDELTA)
 
 load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,  # Уровень логирования
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Формат записи
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    # Формат записи
     handlers=[
-        logging.FileHandler(log_file, mode="a", encoding="utf-8"),  # Логи в файл
+        logging.FileHandler(log_file, mode="a", encoding="utf-8"),
+        # Логи в файл
         logging.StreamHandler()  # Логи в консоль
     ]
 )
@@ -249,7 +252,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
                      "\nПожалуйста, вводите "
                      "верные данные, это очень важно для "
                      "эффективность моей работы. \n\n"
-                     "1/7 Напишите Вашу Фамилию Имя и Отчество",
+                     "1/6 Введите название управляющей компании (УК, ТСЖ, ТСН)",
                 reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
@@ -274,7 +277,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
                      "\nПожалуйста, вводите "
                      "верные данные, это очень важно для "
                      "эффективность моей работы. \n\n"
-                     "1/7 Напишите Вашу Фамилию Имя и Отчество",
+                     "1/6 Введите название управляющей компании (УК, ТСЖ, ТСН)",
                 reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
@@ -288,57 +291,15 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
             )
             return
 
-    # Переход в состояние ожидания ФИО
-    await KGMPickupStates.waiting_for_full_name.set()
+    # Переход в состояние ожидания УК
+    await KGMPickupStates.waiting_for_management_company.set()
     if isinstance(message, types.CallbackQuery):
         await message.answer()
 
 
-@dp.message_handler(lambda message: len(message.text) < 10,
-                    state=KGMPickupStates.waiting_for_full_name)
-async def kgm_check_name(message: types.Message) -> None:
-    """Проверяет ФИО на количество символов."""
-    await message.answer(
-        "Введите реальные ФИО в формате \n \U00002757 Фамилия Имя Отчество "
-        "Это чрезвычайно важно.",
-        reply_markup=get_cancel())
-
-
-@dp.message_handler(state=KGMPickupStates.waiting_for_full_name)
-async def get_full_name(message: types.Message, state: FSMContext):
-    await state.update_data(full_name=message.text)
-    await message.answer(
-        '2/7 \U0000260E Введите номер своего контактного телефона через "8" без '
-        'пробелов, тире и прочих лишних знаков. Например "89231234567"',
-        reply_markup=get_cancel())
-    await KGMPickupStates.waiting_for_phone_number.set()
-
-
-@dp.message_handler(
-    regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$',
-    state=KGMPickupStates.waiting_for_phone_number)
-async def get_phone(message: types.Message, state: FSMContext):
-    await state.update_data(phone=message.text)
-    await message.answer(
-        "3/7 \U00002764 Введите название Вашей управляющей компании:",
-        reply_markup=get_cancel())
-    await KGMPickupStates.waiting_for_management_company.set()
-
-
-@dp.message_handler(state=KGMPickupStates.waiting_for_phone_number)
-async def kgm_check_phone(message: types.Message) -> None:
-    """
-    Проверяет номер телефона введенный пользователем.
-    """
-    await message.answer(
-        "Введите корректный номер телефона без пробелов, скобок и тире."
-        "Например: 89081234567",
-        reply_markup=get_cancel())
-
-
 @dp.message_handler(lambda message: len(message.text) < 5,
                     state=KGMPickupStates.waiting_for_management_company)
-async def kgm_check_workplace(message: types.Message) -> None:
+async def kgm_check_management_company(message: types.Message) -> None:
     """Проверяет адрес введенное пользователем место работы на количество символов."""
     await message.answer(
         ' \U00002757 Введите чуть больше информации. Пример: ООО "ЖКХ"',
@@ -349,10 +310,23 @@ async def kgm_check_workplace(message: types.Message) -> None:
 async def get_management_company(message: types.Message, state: FSMContext):
     await state.update_data(management_company=message.text)
     await message.answer(
-        "4/7 Напишите адрес для вывоза в формате \U00002757 Город, Улица,"
+        "2/6 Выберете район в котором находятся КГО:",
+        reply_markup=get_district_name(district_names))
+    await KGMPickupStates.waiting_for_district.set()
+
+
+@dp.callback_query_handler(
+    lambda callback: callback.data.startswith("district:"),
+    state=KGMPickupStates.waiting_for_district)
+async def get_district(callback_query: types.CallbackQuery, state: FSMContext):
+    district = callback_query.data.split(":")[1]
+    await state.update_data(district=district)
+    await callback_query.message.answer(
+        "3/6 Напишите адрес для вывоза в формате \U00002757 Город, Улица,"
         " Дом \U00002757:",
         reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_address.set()
+    await callback_query.answer()
 
 
 @dp.message_handler(lambda message: len(message.text) < 10,
@@ -369,8 +343,8 @@ async def kgm_check_address(message: types.Message) -> None:
 @dp.message_handler(state=KGMPickupStates.waiting_for_address)
 async def get_address(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
-    await message.answer("5/7 Выберите тип отходов:",
-                         reply_markup=get_waste_type_keyboard())
+    await message.answer("4/6 Выберите тип отходов:",
+                         reply_markup=get_waste_type_keyboard(waste_types))
     await KGMPickupStates.waiting_for_waste_type.set()
 
 
@@ -382,7 +356,7 @@ async def get_waste_type(callback_query: types.CallbackQuery,
     waste_type = callback_query.data.split(":")[1]
     await state.update_data(waste_type=waste_type)
     await callback_query.message.answer(
-        '6/7 \U0001F5E8 При необходимости добавьте комментарий. Например: '
+        '5/6 \U0001F5E8 При необходимости добавьте комментарий. Например: '
         '"Мебель у третьего подъезда МКД". '
         'Если в комментарии нет необходимости отправьте "Нет"',
         reply_markup=get_cancel())
@@ -393,7 +367,7 @@ async def get_waste_type(callback_query: types.CallbackQuery,
 async def get_comment(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
     await message.answer(
-        "7/7 \U0001F381 Отправьте фото отходов. "
+        "6/6 \U0001F381 Отправьте фото отходов. "
         "Много не нужно, достаточно одну фотографию.",
         reply_markup=get_cancel())
     await KGMPickupStates.waiting_for_photo.set()
@@ -411,8 +385,9 @@ async def get_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     confirmation_text = (
         f"Проверьте введенные данные:\n"
-        f"ФИО: {user_data['full_name']}\n"
-        f"\U0000260E Телефон: {user_data['phone']}\n"
+       # f"ФИО: {user_data['full_name']}\n"
+     #   f"\U0000260E Телефон: {user_data['phone']}\n"
+        f"Район: {user_data['district']}\n"
         f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
         f"\U00002757 Адрес дома: {user_data['address']}\n"
         f"Тип отходов: {user_data['waste_type']}\n\n"
@@ -433,6 +408,7 @@ async def get_photo(message: types.Message, state: FSMContext):
                            state=KGMPickupStates.waiting_for_confirmation)
 async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
+    user_id = callback_query.from_user.id
     # Логика сохранения заявки в базу данных здесь
     await callback_query.message.answer(
         "Спасибо! Ваша заявка принята \U0001F9D9",
@@ -449,14 +425,19 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
         await bot.send_message(DEV_TG_ID,
                                "Произошла ошибка при загрузке фото. Смотри логи.")
+    # Получаем информацию о пользователе из базы данных
+    user_info = get_user_by_id(user_id, database_path)
+    # Получаем имя тех зоны
+    coast = get_coast_name(districts_tz,user_data['district'])
     # Сохраняем заявку в ГТаблицу
     g_data = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime("%Y-%m-%d %H:%M:%S"),
         'Телеграмм БОТ',
-        user_data['full_name'],
-        user_data['phone'],
+        user_info['full_name'],
+        user_info['phone_number'],
         user_data['management_company'],
         user_data['address'],
+        user_data['district'],
         user_data['waste_type'],
         user_data['comment']
     ]
@@ -473,7 +454,7 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
                                "Произошла ошибка при сохранении заявки в БД. "
                                "Смотри логи." + lost_data)
     try:
-        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, g_data)
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast], g_data)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
         lost_data = ' '.join(g_data)
