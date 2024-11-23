@@ -126,7 +126,7 @@ async def start_registration(event: types.CallbackQuery | types.Message):
                                   "информацию, а я ее обработаю. "
                                   "\nПожалуйста, вводите "
                                   "верные данные, это очень важно для "
-                                  "эффективность моей работы. \n\n"
+                                  "эффективности моей работы. \n\n"
                                   "1/3 Напишите Вашу Фамилию Имя и Отчество",
                              reply_markup=get_cancel())
     await RegistrationStates.waiting_for_full_name.set()
@@ -252,7 +252,8 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
                      "\nПожалуйста, вводите "
                      "верные данные, это очень важно для "
                      "эффективность моей работы. \n\n"
-                     "1/6 Введите название управляющей компании (УК, ТСЖ, ТСН)",
+                     "1/6 \U00002764 Введите название управляющей "
+                     "компании (УК, ТСЖ, ТСН)",
                 reply_markup=get_cancel())
         else:
             keyboard = InlineKeyboardMarkup().add(
@@ -385,12 +386,12 @@ async def get_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     confirmation_text = (
         f"Проверьте введенные данные:\n"
-       # f"ФИО: {user_data['full_name']}\n"
-     #   f"\U0000260E Телефон: {user_data['phone']}\n"
-        f"Район: {user_data['district']}\n"
+        # f"ФИО: {user_data['full_name']}\n"
+        #   f"\U0000260E Телефон: {user_data['phone']}\n"
+        f"\U000026A0 Район: {user_data['district']}\n"
         f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
         f"\U00002757 Адрес дома: {user_data['address']}\n"
-        f"Тип отходов: {user_data['waste_type']}\n\n"
+        f"\U0001F5D1 Тип отходов: {user_data['waste_type']}\n\n"
         f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
         "Если все верно, нажмите 'Подтвердить'."
     )
@@ -428,10 +429,11 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
     # Получаем информацию о пользователе из базы данных
     user_info = get_user_by_id(user_id, database_path)
     # Получаем имя тех зоны
-    coast = get_coast_name(districts_tz,user_data['district'])
+    coast = get_coast_name(districts_tz, user_data['district'])
     # Сохраняем заявку в ГТаблицу
     g_data = [
-        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime("%Y-%m-%d %H:%M:%S"),
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
+            "%Y-%m-%d %H:%M:%S"),
         'Телеграмм БОТ',
         user_info['full_name'],
         user_info['phone_number'],
@@ -454,7 +456,8 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
                                "Произошла ошибка при сохранении заявки в БД. "
                                "Смотри логи." + lost_data)
     try:
-        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast], g_data)
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast],
+                                      g_data)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
         lost_data = ' '.join(g_data)
