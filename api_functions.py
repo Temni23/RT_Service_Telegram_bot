@@ -11,9 +11,8 @@ def upload_and_get_link(client: Client, filename: bytes, disk_folder: str) -> st
     save_filename = str(datetime.timestamp(datetime.now())).replace('.', '') + '.jpg'
     with client:
         client.upload(filename, f'/{disk_folder}/{save_filename}')
-        file_url = client.get_download_link(f'/{disk_folder}/{save_filename}')
 
-    return file_url
+    return save_filename
 
 
 
