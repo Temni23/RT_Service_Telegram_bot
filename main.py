@@ -120,6 +120,7 @@ async def start_registration(event: types.CallbackQuery | types.Message):
         await message.answer("Вы уже зарегистрированы! "
                              "Я приму вашу заявку \U0001F69B",
                              reply_markup=get_main_menu())
+        return
     else:
         await message.answer(text="Начнем! \nОтветным сообщением направляйте"
                                   " мне нужную "
