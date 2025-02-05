@@ -19,3 +19,14 @@ class RegistrationStates(StatesGroup):
     waiting_for_phone_number = State()
     waiting_for_workplace = State()
     confirmation_application = State()
+
+class ComplaintFSM(StatesGroup):
+    choosing_complaint_type = State()
+    choosing_no_collection_days = State()
+    choosing_quality_issue = State()
+    entering_address = State()
+    uploading_photo = State()
+    adding_comment = State()
+    choosing_contact_method = State()
+    entering_email = State()
+    confirming_data = State()
