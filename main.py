@@ -1,16 +1,16 @@
 import logging
 import os
+from datetime import datetime, timedelta
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
-from aiogram.utils import executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
+from aiogram.utils import executor
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
 from FSM_Classes import RegistrationStates, KGMPickupStates
 from api_functions import upload_and_get_link, upload_information_to_gsheets
@@ -61,7 +61,7 @@ async def send_welcome(message: types.Message):
     user_id = message.from_user.id
     if is_user_registered(database_path, user_id):
         await message.reply("Добро пожаловать! "
-                            "Я приму вашу заявку на вывоз КГМ \U0001F69B",
+                            "Я приму вашу заявку на вывоз КГМ \U0001F69B или обращения по качеству оказания услуг \U0001f514",
                             reply_markup=get_main_menu())
     else:
         keyboard = InlineKeyboardMarkup().add(
@@ -463,6 +463,11 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         await bot.send_message(DEV_TG_ID,
                                "Произошла ошибка при загрузке на GD. "
                                "Смотри логи." + lost_data)
+
+
+##############################################################################
+####################### Машина состояний жалоба ##############################
+##############################################################################
 
 
 ##############################################################################

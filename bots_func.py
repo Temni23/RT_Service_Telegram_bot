@@ -13,7 +13,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,9 +41,10 @@ def get_main_menu() -> InlineKeyboardMarkup:
     Направить обращение
     """
     keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
-                                  callback_data='kgm_request')
-    keyboard.add(button)
+    keyboard.add(InlineKeyboardButton("Заявка на вывоз КГМ",
+                                      callback_data="kgm_request"))
+    keyboard.add(InlineKeyboardButton("Обращение по качеству услуг",
+                                      callback_data="quality_complaint"))
     return keyboard
 
 
@@ -65,7 +65,8 @@ def get_district_name(district_names: list) -> InlineKeyboardMarkup:
                                           callback_data=f"district:{district}"))
     return keyboard
 
-def get_coast_name(districts:dict[str: str], district_name) -> str:
+
+def get_coast_name(districts: dict[str: str], district_name) -> str:
     return districts.get(district_name)
 
 

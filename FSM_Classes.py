@@ -21,6 +21,7 @@ class RegistrationStates(StatesGroup):
     confirmation_application = State()
 
 class ComplaintFSM(StatesGroup):
+    """Класс для приема жалоб."""
     choosing_complaint_type = State()
     choosing_no_collection_days = State()
     choosing_quality_issue = State()
