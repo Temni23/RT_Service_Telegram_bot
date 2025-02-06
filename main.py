@@ -12,10 +12,15 @@ from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
 from aiogram.utils import executor
 from dotenv import load_dotenv
 
-from FSM_Classes import RegistrationStates, KGMPickupStates
+from FSM_Classes import RegistrationStates, KGMPickupStates, ComplaintFSM
 from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
-                       download_photo, get_district_name, get_coast_name)
+                       download_photo, get_district_name, get_coast_name,
+                       is_valid_email, get_quality_complaint_keyboard,
+                       get_no_collection_days_keyboard,
+                       get_quality_issue_keyboard, get_cancel_keyboard,
+                       get_confirmation_keyboard, get_no_comment_keyboard,
+                       get_contact_method_keyboard)
 from database_functions import is_user_registered, register_user, \
     save_kgm_request, get_user_by_id
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
@@ -468,6 +473,166 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
 ##############################################################################
 ####################### Машина состояний жалоба ##############################
 ##############################################################################
+
+@dp.callback_query_handler(
+    lambda callback: callback.data == "quality_complaint", state="*")
+async def start_complaint_process(callback: types.CallbackQuery,
+                                  state: FSMContext):
+    user_id = callback.from_user.id
+    if is_user_registered(database_path, user_id):
+        await callback.message.answer(
+            text="Начнем! \nОтветным сообщением направляйте"
+                 " мне нужную "
+                 "информацию, а я ее обработаю. "
+                 "\nПожалуйста, вводите "
+                 "верные данные, это очень важно для "
+                 "эффективность моей работы. \n\n"
+                 "1/6 \U00002764 Выберите тип обращения:",
+            reply_markup=await get_quality_complaint_keyboard())
+    else:
+        keyboard = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("Зарегистрироваться",
+                                 callback_data="register")
+        )
+        await callback.message.reply(
+            "Добро пожаловать! Похоже, вы новый пользователь. "
+            "Нажмите кнопку ниже для регистрации.",
+            reply_markup=keyboard
+        )
+        return
+    await ComplaintFSM.waiting_complaint_type.set()
+    await callback.answer()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_complaint_type)
+async def complaint_type_chosen(callback: types.CallbackQuery,
+                                state: FSMContext):
+    await state.update_data(complaint_type=callback.data)
+    if callback.data == "no_collection":
+        await callback.message.answer("Когда не вывезли ТКО?",
+                                      reply_markup=await get_no_collection_days_keyboard())
+        await ComplaintFSM.waiting_trouble.set()
+        await callback.answer()
+
+    elif callback.data == "quality_issues":
+        await callback.message.answer("Выберите тему замечания:",
+                                      reply_markup=await get_quality_issue_keyboard())
+        await ComplaintFSM.waiting_trouble.set()
+        await callback.answer()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_trouble)
+async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "today":
+        await callback.message.answer("Техника работает на линии, ожидайте.",
+                                      reply_markup=get_main_menu())
+        await state.finish()
+        return
+    await state.update_data(trouble=callback.data)
+    await callback.message.answer("С каким адресом связано обращение?",
+                                  reply_markup=get_cancel())
+    await ComplaintFSM.waiting_address.set()
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_address)
+async def trouble_chosen(message: types.Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await message.answer(
+        "3/6 Введите название управляющей компании (УК, ТСЖ, ТСН)",
+        reply_markup=get_cancel())
+    await ComplaintFSM.waiting_for_management_company.set()
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_for_management_company)
+async def management_company_chosen(message: types.Message, state: FSMContext):
+    await state.update_data(management_company=message.text)
+    await message.answer(
+        "4/6 Выберете район с которым связано обращение:",
+        reply_markup=get_district_name(district_names))
+    await ComplaintFSM.waiting_for_district.set()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_for_district)
+async def address_entered(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(district=callback.data)
+    await callback.message.answer("Отправьте фото с фиксацией проблемы",
+                         reply_markup=await get_cancel_keyboard())
+    await ComplaintFSM.waiting_photo.set()
+
+
+@dp.message_handler(content_types=types.ContentType.PHOTO,
+                    state=ComplaintFSM.waiting_photo)
+async def photo_uploaded(message: types.Message, state: FSMContext):
+    await state.update_data(photo=message.photo[-1].file_id)
+    await message.answer("Добавьте комментарий с описанием проблемы",
+                         reply_markup=await get_no_comment_keyboard())
+    await ComplaintFSM.waiting_comment.set()
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_comment)
+async def comment_entered(message: types.Message, state: FSMContext):
+    await state.update_data(comment=message.text)
+    await message.answer("Выберете способ обратной связи",
+                         reply_markup=await get_contact_method_keyboard())
+    await ComplaintFSM.waiting_contact_method.set()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_comment)
+async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(comment=callback.data)
+    await callback.message.answer("Выберете способ обратной связи",
+                                  reply_markup=await get_contact_method_keyboard())
+    await ComplaintFSM.waiting_contact_method.set()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_contact_method)
+async def contact_method_chosen(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "email":
+        await callback.message.answer("Введите email для обратной связи:",
+                                  reply_markup=await get_cancel_keyboard())
+        await ComplaintFSM.waiting_email.set()
+    else:
+        await state.update_data(contact_method=callback.data)
+        user_data = await state.get_data()
+        print(user_data)
+        confirmation_text = (
+            f"Проверьте введенные данные:\n"
+            #           f"\U000026A0 Район: {user_data['district']}\n"
+            #          f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+            f"\U00002757 Адрес дома: {user_data['address']}\n"
+            #         f"\U0001F5D1 Тип отходов: {user_data['waste_type']}\n\n"
+            f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
+            "Если все верно, нажмите 'Подтвердить'.")
+        await callback.message.answer(confirmation_text,
+                                  reply_markup=await get_confirmation_keyboard())
+        await ComplaintFSM.waiting_for_confirmation.set()
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_email)
+async def email_entered(message: types.Message, state: FSMContext):
+    email = message.text.strip()
+    if is_valid_email(email):
+        await state.update_data(email=email)
+        await message.answer("Подтвердите корректность введенных данных",
+                             reply_markup=await get_confirmation_keyboard())
+        await ComplaintFSM.waiting_for_confirmation.set()
+    else:
+        await message.answer(
+            "Некорректный email. Пожалуйста, введите корректный адрес электронной почты:",
+            reply_markup=await get_cancel_keyboard())
+
+
+@dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
+                           state=ComplaintFSM.waiting_for_confirmation)
+async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    user_id = callback_query.from_user.id
+    # Логика сохранения заявки в базу данных здесь
+    await callback_query.message.answer(
+        "Спасибо! Ваша заявка принята \U0001F9D9",
+        reply_markup=get_main_menu())
+    await state.finish()
+    await callback_query.answer()
 
 
 ##############################################################################

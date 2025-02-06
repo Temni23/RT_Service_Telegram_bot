@@ -7,6 +7,7 @@
 """
 
 import os
+import re
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -133,7 +134,7 @@ async def get_cancel_keyboard():
 
 async def get_confirmation_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("ВСЕ ВЕРНО", callback_data="confirm"))
+    keyboard.add(InlineKeyboardButton("ВСЕ ВЕРНО", callback_data="confirm_data"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
@@ -145,3 +146,13 @@ async def get_contact_method_keyboard():
     keyboard.add(InlineKeyboardButton("Электронная почта", callback_data="email"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
+
+async def get_no_comment_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Нет комментария", callback_data="no_comment"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+# Функция для валидации email
+def is_valid_email(email: str) -> bool:
+    return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None

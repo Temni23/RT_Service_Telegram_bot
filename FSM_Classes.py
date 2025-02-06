@@ -22,12 +22,13 @@ class RegistrationStates(StatesGroup):
 
 class ComplaintFSM(StatesGroup):
     """Класс для приема жалоб."""
-    choosing_complaint_type = State()
-    choosing_no_collection_days = State()
-    choosing_quality_issue = State()
-    entering_address = State()
-    uploading_photo = State()
-    adding_comment = State()
-    choosing_contact_method = State()
-    entering_email = State()
-    confirming_data = State()
+    waiting_complaint_type = State()
+    waiting_trouble = State()
+    waiting_address = State()
+    waiting_for_management_company = State()
+    waiting_for_district = State()
+    waiting_photo = State()
+    waiting_comment = State()
+    waiting_contact_method = State()
+    waiting_email = State()
+    waiting_for_confirmation = State()
