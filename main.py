@@ -27,7 +27,8 @@ from database_functions import (is_user_registered, register_user,
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file, waste_types, district_names,
-                      districts_tz, TIMEDELTA)
+                      districts_tz, TIMEDELTA, GOOGLE_SHEET_COMPLAINT_NAME,
+                      YA_DISK_FOLDER_COMPLAINS)
 
 load_dotenv()
 
@@ -657,7 +658,7 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     try:
         downloaded_file = await download_photo(user_data['photo'], bot)
         link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
-                                           YA_DISK_FOLDER)
+                                           YA_DISK_FOLDER_COMPLAINTS)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
         await bot.send_message(DEV_TG_ID,
@@ -669,8 +670,8 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
 
     # Сохраняем заявку в ГТаблицу
     g_data = [
-        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
-            "%Y-%m-%d %H:%M:%S"),
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime("%Y-%m-%d %H:%M:%S"),
+        coast,
         'Телеграмм БОТ',
         user_info['full_name'],
         user_info['phone_number'],
@@ -691,24 +692,22 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
 
     # Сохраняем в базу данных жалобу
     try:
-        save_quality_complaint(database_path, *g_data[2:])
+        save_quality_complaint(database_path, *g_data[3:])
     except Exception as e:
         logging.error(f"Ошибка при сохранении жалобы в БД: {e}")
         lost_data = ' '.join(g_data)
         await bot.send_message(DEV_TG_ID,
                                "Произошла ошибка при сохранении жалобы в БД. "
                                "Смотри логи." + lost_data)
-    # try:
-    #     upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast],
-    #                                   g_data)
-    # except Exception as e:
-    #     logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
-    #     lost_data = ' '.join(g_data)
-    #     await bot.send_message(DEV_TG_ID,
-    #                            "Произошла ошибка при загрузке на GD. "
-    #                            "Смотри логи." + lost_data)
-
-
+    try:
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_COMPLAINT_NAME,
+                                      g_data)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке на GD. "
+                               "Смотри логи." + lost_data)
 
 
 ##############################################################################
