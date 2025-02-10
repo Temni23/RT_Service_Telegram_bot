@@ -521,11 +521,23 @@ async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
         await state.finish()
         return
     await state.update_data(trouble=callback.data)
-    await callback.message.answer("3/8 С каким адресом связано обращение?",
-                                  # TODO Привести к одному виду с КГМ
+    await callback.message.answer("3/8 Напишите адрес с которым связано "
+                                  "обращение в формате \U00002757 Город, "
+                                  "Улица, Дом \U00002757:",
                                   reply_markup=get_cancel())
     await ComplaintFSM.waiting_address.set()
     await callback.answer()
+
+
+@dp.message_handler(lambda message: len(message.text) < 10,
+                    state=ComplaintFSM.waiting_address)
+async def check_address(message: types.Message) -> None:
+    """Проверяет адрес введенный пользователем на количество символов."""
+    await message.answer(
+        'Введите правильный адрес в формате \n \U00002757 Город, Улица,'
+        ' Дом \U00002757 \nЭто чрезвычайно важно для корректной '
+        'работы с Вашим вопросом. \n Пример "Красноярск ул. Тельмана д. 1"',
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=ComplaintFSM.waiting_address)
@@ -535,6 +547,15 @@ async def trouble_chosen(message: types.Message, state: FSMContext):
         "4/8 Введите название управляющей компании (УК, ТСЖ, ТСН)",
         reply_markup=get_cancel())
     await ComplaintFSM.waiting_for_management_company.set()
+
+
+@dp.message_handler(lambda message: len(message.text) < 5,
+                    state=ComplaintFSM.waiting_for_management_company)
+async def check_management_company(message: types.Message) -> None:
+    """Проверяет адрес введенное пользователем место работы на количество символов."""
+    await message.answer(
+        ' \U00002757 Введите чуть больше информации. Пример: ООО "ЖКХ"',
+        reply_markup=get_cancel())
 
 
 @dp.message_handler(state=ComplaintFSM.waiting_for_management_company)
@@ -568,8 +589,12 @@ async def photo_uploaded(message: types.Message, state: FSMContext):
 @dp.message_handler(state=ComplaintFSM.waiting_comment)
 async def comment_entered(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
+    keyboard = await get_contact_method_keyboard()
+    if '@' in message.from_user.mention:
+        keyboard.add(
+            InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
     await message.answer("8/8 Выберете способ обратной связи",
-                         reply_markup=await get_contact_method_keyboard())
+                         reply_markup=keyboard)
     await ComplaintFSM.waiting_contact_method.set()
 
 
@@ -577,8 +602,12 @@ async def comment_entered(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(state=ComplaintFSM.waiting_comment)
 async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(comment=callback.data)
+    keyboard = await get_contact_method_keyboard()
+    if '@' in callback.from_user.mention:
+        keyboard.add(
+            InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
     await callback.message.answer("8/8 Выберете способ обратной связи",
-                                  reply_markup=await get_contact_method_keyboard())
+                                  reply_markup=keyboard)
     await ComplaintFSM.waiting_contact_method.set()
     await callback.answer()
 
@@ -607,9 +636,6 @@ async def contact_method_chosen(callback: types.CallbackQuery,
             "Если все верно, нажмите 'Подтвердить'."
         )
         keyboard = await get_confirmation_keyboard()
-        if '@' in callback.from_user.mention:
-            keyboard.add(
-                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
 
         await callback.message.answer_photo(photo=photo_file_id,
                                             caption=confirmation_text,
@@ -638,9 +664,9 @@ async def email_entered(message: types.Message, state: FSMContext):
             "Если все верно, нажмите 'Подтвердить'."
         )
         keyboard = await get_confirmation_keyboard()
+        print(message.from_user.mention)
         if '@' in message.from_user.mention:
-            keyboard.add(
-                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+            keyboard.add(InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
 
         await message.answer_photo(photo=photo_file_id,
                                             caption=confirmation_text,
@@ -676,8 +702,14 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
         f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
     )
     # Пересылаем обращение в группу сотрудников
-    await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
-                         caption=forward_text)
+    try:
+        await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
+                             caption=forward_text)
+    except Exception as error:
+        logging.error(f"Ошибка при пересылке: {error}")
+        await bot.send_message(DEV_TG_ID,
+                               f"Произошла {error} ошибка при загрузке фото. Смотри логи.")
+
 
     # Сохраняем фото на ЯДиск
     link_ya_disk = False
