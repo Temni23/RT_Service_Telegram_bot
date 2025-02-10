@@ -20,7 +20,7 @@ load_dotenv()
 
 
 async def download_photo(file_id: str, bot) -> bytes:
-    """Получает file_id возвращает от телеграмма файл в bytes."""
+    """Получает file_id, возвращает от телеграмм файл в bytes."""
     file = await bot.get_file(file_id)
     file_path = file.file_path
     # Загружаем файл в bytes
@@ -106,9 +106,9 @@ async def send_email(message_text, target_email):
 async def get_quality_complaint_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Сообщить о невывозе",
-                                      callback_data="no_collection"))
+                                      callback_data="Невывоз"))
     keyboard.add(InlineKeyboardButton("Замечания по качеству услуг",
-                                      callback_data="quality_issues"))
+                                      callback_data="Замечания"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
@@ -116,11 +116,11 @@ async def get_quality_complaint_keyboard():
 async def get_no_collection_days_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Сегодня", callback_data="today"))
-    keyboard.add(InlineKeyboardButton("Вчера", callback_data="yesterday"))
+    keyboard.add(InlineKeyboardButton("Вчера", callback_data="1 день"))
     keyboard.add(InlineKeyboardButton("Позавчера",
-                                      callback_data="day_before_yesterday"))
+                                      callback_data="2 дня"))
     keyboard.add(
-        InlineKeyboardButton("Более 2 дней", callback_data="more_than_2_days"))
+        InlineKeyboardButton("Более 2 дней", callback_data="Больше 2 дней"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
@@ -128,13 +128,13 @@ async def get_no_collection_days_keyboard():
 async def get_quality_issue_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Не вернули бак на место",
-                                      callback_data="bin_not_returned"))
+                                      callback_data="Не вернули бак"))
     keyboard.add(
-        InlineKeyboardButton("Повредили бак", callback_data="bin_damaged"))
+        InlineKeyboardButton("Повредили бак", callback_data="Повредили бак"))
     keyboard.add(InlineKeyboardButton("Не подобрали россыпь",
-                                      callback_data="spillage_left"))
+                                      callback_data="Россыпь"))
     keyboard.add(InlineKeyboardButton("Неполная отгрузка",
-                                      callback_data="partial_loading"))
+                                      callback_data="Неполная отгрузка"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
@@ -156,9 +156,9 @@ async def get_confirmation_keyboard():
 async def get_contact_method_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Обратная связь не нужна",
-                                      callback_data="no_feedback"))
-    keyboard.add(InlineKeyboardButton("Телеграм", callback_data="telegram"))
-    keyboard.add(InlineKeyboardButton("Телефон", callback_data="phone"))
+                                      callback_data="Не нужна"))
+    keyboard.add(InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+    keyboard.add(InlineKeyboardButton("Телефон", callback_data="Телефон"))
     keyboard.add(
         InlineKeyboardButton("Электронная почта", callback_data="email"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
@@ -168,7 +168,7 @@ async def get_contact_method_keyboard():
 async def get_no_comment_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(
-        InlineKeyboardButton("Нет комментария", callback_data="no_comment"))
+        InlineKeyboardButton("Нет комментария", callback_data="Нет комментария"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 

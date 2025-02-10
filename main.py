@@ -496,13 +496,13 @@ async def start_complaint_process(callback: types.CallbackQuery,
 async def complaint_type_chosen(callback: types.CallbackQuery,
                                 state: FSMContext):
     await state.update_data(complaint_type=callback.data)
-    if callback.data == "no_collection":
+    if callback.data == "Невывоз":
         await callback.message.answer("2/8 Когда не вывезли ТКО?",
                                       reply_markup=await get_no_collection_days_keyboard())
         await ComplaintFSM.waiting_trouble.set()
         await callback.answer()
 
-    elif callback.data == "quality_issues":
+    elif callback.data == "Замечания":
         await callback.message.answer("2/8 Выберите тему замечания:",
                                       reply_markup=await get_quality_issue_keyboard())
         await ComplaintFSM.waiting_trouble.set()
@@ -542,7 +542,7 @@ async def management_company_chosen(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(state=ComplaintFSM.waiting_for_district)
 async def address_entered(callback: types.CallbackQuery, state: FSMContext):
-    await state.update_data(district=callback.data)
+    await state.update_data(district = callback.data.split(":")[1])
     await callback.message.answer("6/8 Отправьте фото с фиксацией проблемы",
                                   reply_markup=await get_cancel_keyboard())
     await ComplaintFSM.waiting_photo.set()
@@ -579,22 +579,25 @@ async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
 async def contact_method_chosen(callback: types.CallbackQuery,
                                 state: FSMContext):
     if callback.data == "email":
+        await state.update_data(contact_method=callback.data)
         await callback.message.answer("* Введите email для обратной связи:",
                                       reply_markup=await get_cancel_keyboard())
         await ComplaintFSM.waiting_email.set()
     else:
         await state.update_data(contact_method=callback.data)
         user_data = await state.get_data()
-        print(user_data)
+        photo_file_id = user_data["photo"]
         confirmation_text = (
             f"Проверьте введенные данные:\n"
-            #           f"\U000026A0 Район: {user_data['district']}\n"
-            #          f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+            f"\U0001F5D1 Тип обращения: {user_data['complaint_type']}\n"
+            f"\U00002b50	 Суть обращения: {user_data['trouble']}\n"
+            f"\U000026A0 Район: {user_data['district']}\n"
+            f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
             f"\U00002757 Адрес дома: {user_data['address']}\n"
-            #         f"\U0001F5D1 Тип отходов: {user_data['waste_type']}\n\n"
-            f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
+            f"\U0001F5E8 Комментарий: {user_data['comment']}\n"
+            f"\U00002712 Способ обратной связи: {user_data['contact_method']}\n\n"
             "Если все верно, нажмите 'Подтвердить'.")
-        await callback.message.answer(confirmation_text,
+        await callback.message.answer_photo(photo=photo_file_id, caption=confirmation_text,
                                       reply_markup=await get_confirmation_keyboard())
         await ComplaintFSM.waiting_for_confirmation.set()
 
@@ -604,7 +607,19 @@ async def email_entered(message: types.Message, state: FSMContext):
     email = message.text.strip()
     if is_valid_email(email):
         await state.update_data(email=email)
-        await message.answer("Подтвердите корректность введенных данных",
+        user_data = await state.get_data()
+        photo_file_id = user_data["photo"]
+        confirmation_text = (
+            f"Проверьте введенные данные:\n"
+            f"\U0001F5D1 Тип обращения: {user_data['complaint_type']}\n"
+            f"\U00002b50 Суть обращения: {user_data['trouble']}\n"
+            f"\U000026A0 Район: {user_data['district']}\n"
+            f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+            f"\U00002757 Адрес дома: {user_data['address']}\n"
+            f"\U0001F5E8 Комментарий: {user_data['comment']}\n"
+            f"\U00002712 Способ обратной связи: {user_data['contact_method']}: {user_data['email']} \n\n"
+            "Если все верно, нажмите 'Подтвердить'.")
+        await message.answer_photo(photo_file_id, caption=confirmation_text,
                              reply_markup=await get_confirmation_keyboard())
         await ComplaintFSM.waiting_for_confirmation.set()
     else:
