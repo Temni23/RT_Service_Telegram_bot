@@ -148,7 +148,7 @@ async def get_cancel_keyboard():
 async def get_confirmation_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(
-        InlineKeyboardButton("ВСЕ ВЕРНО", callback_data="confirm_data"))
+        InlineKeyboardButton("Подтвердить", callback_data="confirm_data"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
