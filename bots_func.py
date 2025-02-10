@@ -101,58 +101,85 @@ async def send_email(message_text, target_email):
     except smtplib.SMTPException:
         print("Ошибка: Невозможно отправить сообщение")
 
+
 # Клавиатуры для FSM этапов
 async def get_quality_complaint_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Сообщить о невывозе", callback_data="no_collection"))
-    keyboard.add(InlineKeyboardButton("Замечания по качеству услуг", callback_data="quality_issues"))
+    keyboard.add(InlineKeyboardButton("Сообщить о невывозе",
+                                      callback_data="no_collection"))
+    keyboard.add(InlineKeyboardButton("Замечания по качеству услуг",
+                                      callback_data="quality_issues"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
+
 
 async def get_no_collection_days_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Сегодня", callback_data="today"))
     keyboard.add(InlineKeyboardButton("Вчера", callback_data="yesterday"))
-    keyboard.add(InlineKeyboardButton("Позавчера", callback_data="day_before_yesterday"))
-    keyboard.add(InlineKeyboardButton("Более 2 дней", callback_data="more_than_2_days"))
+    keyboard.add(InlineKeyboardButton("Позавчера",
+                                      callback_data="day_before_yesterday"))
+    keyboard.add(
+        InlineKeyboardButton("Более 2 дней", callback_data="more_than_2_days"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
+
 async def get_quality_issue_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Не вернули бак на место", callback_data="bin_not_returned"))
-    keyboard.add(InlineKeyboardButton("Повредили бак", callback_data="bin_damaged"))
-    keyboard.add(InlineKeyboardButton("Не подобрали россыпь", callback_data="spillage_left"))
-    keyboard.add(InlineKeyboardButton("Неполная отгрузка", callback_data="partial_loading"))
+    keyboard.add(InlineKeyboardButton("Не вернули бак на место",
+                                      callback_data="bin_not_returned"))
+    keyboard.add(
+        InlineKeyboardButton("Повредили бак", callback_data="bin_damaged"))
+    keyboard.add(InlineKeyboardButton("Не подобрали россыпь",
+                                      callback_data="spillage_left"))
+    keyboard.add(InlineKeyboardButton("Неполная отгрузка",
+                                      callback_data="partial_loading"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
+
 
 async def get_cancel_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
+
 async def get_confirmation_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("ВСЕ ВЕРНО", callback_data="confirm_data"))
+    keyboard.add(
+        InlineKeyboardButton("ВСЕ ВЕРНО", callback_data="confirm_data"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
+
 
 async def get_contact_method_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Обратная связь не нужна", callback_data="no_feedback"))
+    keyboard.add(InlineKeyboardButton("Обратная связь не нужна",
+                                      callback_data="no_feedback"))
     keyboard.add(InlineKeyboardButton("Телеграм", callback_data="telegram"))
     keyboard.add(InlineKeyboardButton("Телефон", callback_data="phone"))
-    keyboard.add(InlineKeyboardButton("Электронная почта", callback_data="email"))
+    keyboard.add(
+        InlineKeyboardButton("Электронная почта", callback_data="email"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
+
 
 async def get_no_comment_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Нет комментария", callback_data="no_comment"))
+    keyboard.add(
+        InlineKeyboardButton("Нет комментария", callback_data="no_comment"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
+
+async def get_registration_keyboard():
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Зарегистрироваться", callback_data="register"))
+    return keyboard
+
+
 # Функция для валидации email
 def is_valid_email(email: str) -> bool:
-    return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None
+    return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$",
+                    email) is not None
