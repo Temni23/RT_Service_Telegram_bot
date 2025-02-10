@@ -28,7 +28,7 @@ from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file, waste_types, district_names,
                       districts_tz, TIMEDELTA, GOOGLE_SHEET_COMPLAINT_NAME,
-                      YA_DISK_FOLDER_COMPLAINS)
+                      YA_DISK_FOLDER_COMPLAINTS, GROUP_ID)
 
 load_dotenv()
 
@@ -606,9 +606,14 @@ async def contact_method_chosen(callback: types.CallbackQuery,
             f"\U00002712 Способ обратной связи: {user_data.get('contact_method', 'Не выбран')}\n\n"
             "Если все верно, нажмите 'Подтвердить'."
         )
+        keyboard = await get_confirmation_keyboard()
+        if '@' in callback.from_user.mention:
+            keyboard.add(
+                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+
         await callback.message.answer_photo(photo=photo_file_id,
                                             caption=confirmation_text,
-                                            reply_markup=await get_confirmation_keyboard())
+                                            reply_markup=keyboard)
         await ComplaintFSM.waiting_for_confirmation.set()
         await callback.answer()
 
@@ -632,8 +637,14 @@ async def email_entered(message: types.Message, state: FSMContext):
             f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
             "Если все верно, нажмите 'Подтвердить'."
         )
-        await message.answer_photo(photo_file_id, caption=confirmation_text,
-                                   reply_markup=await get_confirmation_keyboard())
+        keyboard = await get_confirmation_keyboard()
+        if '@' in message.from_user.mention:
+            keyboard.add(
+                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+
+        await message.answer_photo(photo=photo_file_id,
+                                            caption=confirmation_text,
+                                            reply_markup=keyboard)
         await ComplaintFSM.waiting_for_confirmation.set()
     else:
         await message.answer(
@@ -653,6 +664,21 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await state.finish()
     await callback.answer()
 
+    forward_text = (
+        f"Ботом получено обращение:\n"
+        f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+        f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+        f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+        f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+        f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+        f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+        f"\U00002712 Способ обратной связи: "
+        f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
+    )
+    # Пересылаем обращение в группу сотрудников
+    await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
+                         caption=forward_text)
+
     # Сохраняем фото на ЯДиск
     link_ya_disk = False
     try:
@@ -670,25 +696,26 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
 
     # Сохраняем заявку в ГТаблицу
     g_data = [
-        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime("%Y-%m-%d %H:%M:%S"),
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
+            "%Y-%m-%d %H:%M:%S"),
         coast,
         'Телеграмм БОТ',
-        user_info['full_name'],
-        user_info['phone_number'],
-        user_data['management_company'],
-        user_data['address'],
-        user_data['district'],
-        user_data['complaint_type'],
-        user_data['trouble'],
-        user_data['comment'],
-        user_data['contact_method'],
+        user_info.get('full_name', 'Не указан'),
+        user_info.get('phone_number', 'Не указан'),
+        user_data.get('management_company', 'Не указана'),
+        user_data.get('address', 'Не указан'),
+        user_data.get('district', 'Не указан'),
+        user_data.get('complaint_type', 'Не указан'),
+        user_data.get('trouble', 'Не указано'),
+        user_data.get('comment', 'Нет комментария'),
+        user_data.get('contact_method', 'Не указан'),
         user_data.get('email', 'Не указан')  # email перед photo_link
     ]
 
     if link_ya_disk:
-        g_data.append(link_ya_disk)
+        g_data.append(link_ya_disk)  # Добавляем фото, если есть
 
-    g_data.append(user_info['username'])  # Username всегда **последний**
+    g_data.append(user_info.get('username', 'Не указан'))
 
     # Сохраняем в базу данных жалобу
     try:
@@ -700,7 +727,8 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
                                "Произошла ошибка при сохранении жалобы в БД. "
                                "Смотри логи." + lost_data)
     try:
-        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_COMPLAINT_NAME,
+        upload_information_to_gsheets(GOOGLE_CLIENT,
+                                      GOOGLE_SHEET_COMPLAINT_NAME,
                                       g_data)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")

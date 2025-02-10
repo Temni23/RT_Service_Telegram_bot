@@ -157,7 +157,6 @@ async def get_contact_method_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Обратная связь не нужна",
                                       callback_data="Не нужна"))
-    keyboard.add(InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
     keyboard.add(InlineKeyboardButton("Телефон", callback_data="Телефон"))
     keyboard.add(
         InlineKeyboardButton("Электронная почта", callback_data="email"))

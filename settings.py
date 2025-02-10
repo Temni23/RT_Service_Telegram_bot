@@ -34,6 +34,7 @@ GOOGLE_SHEET_COMPLAINT_NAME = os.getenv('GOOGLE_SHEET_COMPLAINT_NAME')
 
 DEV_TG_ID = os.getenv('DEV_TG_ID')
 TIMEDELTA = int(os.getenv('TIMEDELTA'))
+GROUP_ID=os.getenv('GROUP_ID')
 
 text_message_answers = [
     'Я могу отвечать только на вопросы выбранные из меню. Воспользуйтесь им пожалуйста.',
