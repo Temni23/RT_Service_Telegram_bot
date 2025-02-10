@@ -1,27 +1,34 @@
 import logging
 import os
+from datetime import datetime, timedelta
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
-from aiogram.utils import executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
+from aiogram.utils import executor
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
-from FSM_Classes import RegistrationStates, KGMPickupStates
+from FSM_Classes import RegistrationStates, KGMPickupStates, ComplaintFSM
 from api_functions import upload_and_get_link, upload_information_to_gsheets
 from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
-                       download_photo, get_district_name, get_coast_name)
-from database_functions import is_user_registered, register_user, \
-    save_kgm_request, get_user_by_id
+                       download_photo, get_district_name, get_coast_name,
+                       is_valid_email, get_quality_complaint_keyboard,
+                       get_no_collection_days_keyboard,
+                       get_quality_issue_keyboard, get_cancel_keyboard,
+                       get_confirmation_keyboard, get_no_comment_keyboard,
+                       get_contact_method_keyboard, get_registration_keyboard)
+from database_functions import (is_user_registered, register_user,
+                                save_kgm_request, get_user_by_id,
+                                save_quality_complaint)
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file, waste_types, district_names,
-                      districts_tz, TIMEDELTA)
+                      districts_tz, TIMEDELTA, GOOGLE_SHEET_COMPLAINT_NAME,
+                      YA_DISK_FOLDER_COMPLAINTS, GROUP_ID)
 
 load_dotenv()
 
@@ -61,13 +68,10 @@ async def send_welcome(message: types.Message):
     user_id = message.from_user.id
     if is_user_registered(database_path, user_id):
         await message.reply("Добро пожаловать! "
-                            "Я приму вашу заявку на вывоз КГМ \U0001F69B",
+                            "Я приму вашу заявку на вывоз КГМ \U0001F69B или обращения по качеству оказания услуг \U0001f514",
                             reply_markup=get_main_menu())
     else:
-        keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("Зарегистрироваться",
-                                 callback_data="register")
-        )
+        keyboard = await get_registration_keyboard()
         await message.reply(
             "Добро пожаловать! Похоже, вы новый пользователь. "
             "Нажмите кнопку ниже для регистрации. "
@@ -257,10 +261,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
                      "компании (УК, ТСЖ, ТСН)",
                 reply_markup=get_cancel())
         else:
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("Зарегистрироваться",
-                                     callback_data="register")
-            )
+            keyboard = await get_registration_keyboard()
             await message.reply(
                 "Добро пожаловать! Похоже, вы новый пользователь. "
                 "Нажмите кнопку ниже для регистрации.",
@@ -282,10 +283,7 @@ async def start_kgm_request(message: types.Message | types.CallbackQuery):
                      "1/6 Введите название управляющей компании (УК, ТСЖ, ТСН)",
                 reply_markup=get_cancel())
         else:
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("Зарегистрироваться",
-                                     callback_data="register")
-            )
+            keyboard = await get_registration_keyboard()
             await message.message.answer(
                 "Добро пожаловать! Похоже, вы новый пользователь. "
                 "Нажмите кнопку ниже для регистрации.",
@@ -415,6 +413,24 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu())
     await state.finish()
     await callback_query.answer()
+    # Пересылаем заявку в группу
+    forward_text = (
+        f"Получена заявка на вывоз КГМ:\n"
+        f"\U000026A0 Район: {user_data['district']}\n"
+        f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+        f"\U00002757 Адрес дома: {user_data['address']}\n"
+        f"\U0001F5D1 Тип отходов: {user_data['waste_type']}\n\n"
+        f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
+    )
+
+    try:
+        await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
+                             caption=forward_text)
+    except Exception as error:
+        logging.error(f"Ошибка при пересылке: {error}")
+        await bot.send_message(DEV_TG_ID,
+                               f"Произошла {error} ошибка при загрузке фото. Смотри логи.")
+
     # Сохраняем фото на ЯДиск
     link_ya_disk = False
     try:
@@ -456,6 +472,313 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
                                "Смотри логи." + lost_data)
     try:
         upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast],
+                                      g_data)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке на GD. "
+                               "Смотри логи." + lost_data)
+
+
+##############################################################################
+####################### Машина состояний жалоба ##############################
+################################################################################
+
+@dp.callback_query_handler(
+    lambda callback: callback.data == "quality_complaint", state="*")
+async def start_complaint_process(callback: types.CallbackQuery,
+                                  state: FSMContext):
+    user_id = callback.from_user.id
+    if is_user_registered(database_path, user_id):
+        await callback.message.answer(
+            text="Начнем! \nОтветным сообщением направляйте"
+                 " мне нужную "
+                 "информацию, а я ее обработаю. "
+                 "\nПожалуйста, вводите "
+                 "верные данные, это очень важно для "
+                 "эффективность моей работы. \n\n"
+                 "1/8 \U00002764 Выберите тип обращения:",
+            reply_markup=await get_quality_complaint_keyboard())
+    else:
+        keyboard = await get_registration_keyboard()
+        await callback.message.reply(
+            "Добро пожаловать! Похоже, вы новый пользователь. "
+            "Нажмите кнопку ниже для регистрации.",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+        return
+    await ComplaintFSM.waiting_complaint_type.set()
+    await callback.answer()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_complaint_type)
+async def complaint_type_chosen(callback: types.CallbackQuery,
+                                state: FSMContext):
+    await state.update_data(complaint_type=callback.data)
+    if callback.data == "Невывоз":
+        await callback.message.answer("2/8 Когда не вывезли ТКО?",
+                                      reply_markup=await get_no_collection_days_keyboard())
+        await ComplaintFSM.waiting_trouble.set()
+        await callback.answer()
+
+    elif callback.data == "Замечания":
+        await callback.message.answer("2/8 Выберите тему замечания:",
+                                      reply_markup=await get_quality_issue_keyboard())
+        await ComplaintFSM.waiting_trouble.set()
+        await callback.answer()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_trouble)
+async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "today":
+        await callback.message.answer("Техника работает на линии, ожидайте.",
+                                      # TODO Добавить санпин
+                                      reply_markup=get_main_menu())
+        await state.finish()
+        return
+    await state.update_data(trouble=callback.data)
+    await callback.message.answer("3/8 Напишите адрес с которым связано "
+                                  "обращение в формате \U00002757 Город, "
+                                  "Улица, Дом \U00002757:",
+                                  reply_markup=get_cancel())
+    await ComplaintFSM.waiting_address.set()
+    await callback.answer()
+
+
+@dp.message_handler(lambda message: len(message.text) < 10,
+                    state=ComplaintFSM.waiting_address)
+async def check_address(message: types.Message) -> None:
+    """Проверяет адрес введенный пользователем на количество символов."""
+    await message.answer(
+        'Введите правильный адрес в формате \n \U00002757 Город, Улица,'
+        ' Дом \U00002757 \nЭто чрезвычайно важно для корректной '
+        'работы с Вашим вопросом. \n Пример "Красноярск ул. Тельмана д. 1"',
+        reply_markup=get_cancel())
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_address)
+async def trouble_chosen(message: types.Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await message.answer(
+        "4/8 Введите название управляющей компании (УК, ТСЖ, ТСН)",
+        reply_markup=get_cancel())
+    await ComplaintFSM.waiting_for_management_company.set()
+
+
+@dp.message_handler(lambda message: len(message.text) < 5,
+                    state=ComplaintFSM.waiting_for_management_company)
+async def check_management_company(message: types.Message) -> None:
+    """Проверяет адрес введенное пользователем место работы на количество символов."""
+    await message.answer(
+        ' \U00002757 Введите чуть больше информации. Пример: ООО "ЖКХ"',
+        reply_markup=get_cancel())
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_for_management_company)
+async def management_company_chosen(message: types.Message, state: FSMContext):
+    await state.update_data(management_company=message.text)
+    await message.answer(
+        "5/8 Выберете район с которым связано обращение:",
+        reply_markup=get_district_name(district_names))
+    await ComplaintFSM.waiting_for_district.set()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_for_district)
+async def address_entered(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(district=callback.data.split(":")[1])
+    await callback.message.answer("6/8 Отправьте фото с фиксацией проблемы",
+                                  reply_markup=await get_cancel_keyboard())
+    await ComplaintFSM.waiting_photo.set()
+    await callback.answer()
+
+
+@dp.message_handler(content_types=types.ContentType.PHOTO,
+                    state=ComplaintFSM.waiting_photo)
+async def photo_uploaded(message: types.Message, state: FSMContext):
+    await state.update_data(photo=message.photo[-1].file_id)
+    await message.answer("7/8 Добавьте комментарий с описанием проблемы",
+                         reply_markup=await get_no_comment_keyboard())
+    await ComplaintFSM.waiting_comment.set()
+
+
+# Обработка текстового комментария
+@dp.message_handler(state=ComplaintFSM.waiting_comment)
+async def comment_entered(message: types.Message, state: FSMContext):
+    await state.update_data(comment=message.text)
+    keyboard = await get_contact_method_keyboard()
+    if '@' in message.from_user.mention:
+        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+                                                                 callback_data="Телеграм")])
+    await message.answer("8/8 Выберете способ обратной связи",
+                         reply_markup=keyboard)
+    await ComplaintFSM.waiting_contact_method.set()
+
+
+# Обработка комментария по кнопке
+@dp.callback_query_handler(state=ComplaintFSM.waiting_comment)
+async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(comment=callback.data)
+    keyboard = await get_contact_method_keyboard()
+    if '@' in callback.from_user.mention:
+        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+                                                                callback_data="Телеграм")])
+    await callback.message.answer("8/8 Выберете способ обратной связи",
+                                  reply_markup=keyboard)
+    await ComplaintFSM.waiting_contact_method.set()
+    await callback.answer()
+
+
+@dp.callback_query_handler(state=ComplaintFSM.waiting_contact_method)
+async def contact_method_chosen(callback: types.CallbackQuery,
+                                state: FSMContext):
+    if callback.data == "email":
+        await state.update_data(contact_method=callback.data)
+        await callback.message.answer("* Введите email для обратной связи:",
+                                      reply_markup=await get_cancel_keyboard())
+        await ComplaintFSM.waiting_email.set()
+    else:
+        await state.update_data(contact_method=callback.data)
+        user_data = await state.get_data()
+        photo_file_id = user_data.get('photo', 'photo missed')
+        confirmation_text = (
+            f"Проверьте введенные данные:\n"
+            f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+            f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+            f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+            f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+            f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+            f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+            f"\U00002712 Способ обратной связи: {user_data.get('contact_method', 'Не выбран')}\n\n"
+            "Если все верно, нажмите 'Подтвердить'."
+        )
+        keyboard = await get_confirmation_keyboard()
+
+        await callback.message.answer_photo(photo=photo_file_id,
+                                            caption=confirmation_text,
+                                            reply_markup=keyboard)
+        await ComplaintFSM.waiting_for_confirmation.set()
+        await callback.answer()
+
+
+@dp.message_handler(state=ComplaintFSM.waiting_email)
+async def email_entered(message: types.Message, state: FSMContext):
+    email = message.text.strip()
+    if is_valid_email(email):
+        await state.update_data(email=email)
+        user_data = await state.get_data()
+        photo_file_id = user_data.get('photo', 'photo missed')
+        confirmation_text = (
+            f"Проверьте введенные данные:\n"
+            f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+            f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+            f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+            f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+            f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+            f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+            f"\U00002712 Способ обратной связи: "
+            f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
+            "Если все верно, нажмите 'Подтвердить'."
+        )
+        keyboard = await get_confirmation_keyboard()
+        print(message.from_user.mention)
+        if '@' in message.from_user.mention:
+            keyboard.add(
+                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+
+        await message.answer_photo(photo=photo_file_id,
+                                   caption=confirmation_text,
+                                   reply_markup=keyboard)
+        await ComplaintFSM.waiting_for_confirmation.set()
+    else:
+        await message.answer(
+            "Некорректный email. Пожалуйста, введите корректный адрес электронной почты:",
+            reply_markup=await get_cancel_keyboard())
+
+
+@dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
+                           state=ComplaintFSM.waiting_for_confirmation)
+async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    user_id = callback.from_user.id
+    # Логика сохранения заявки в базу данных здесь
+    await callback.message.answer(
+        "Спасибо! Ваша заявка принята \U0001F9D9",
+        reply_markup=get_main_menu())
+    await state.finish()
+    await callback.answer()
+
+    forward_text = (
+        f"Ботом получено обращение:\n"
+        f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+        f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+        f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+        f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+        f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+        f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+        f"\U00002712 Способ обратной связи: "
+        f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
+    )
+    # Пересылаем обращение в группу сотрудников
+    try:
+        await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
+                             caption=forward_text)
+    except Exception as error:
+        logging.error(f"Ошибка при пересылке: {error}")
+        await bot.send_message(DEV_TG_ID,
+                               f"Произошла {error} ошибка при загрузке фото. Смотри логи.")
+
+    # Сохраняем фото на ЯДиск
+    link_ya_disk = False
+    try:
+        downloaded_file = await download_photo(user_data['photo'], bot)
+        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                           YA_DISK_FOLDER_COMPLAINTS)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке фото. Смотри логи.")
+    # Получаем информацию о пользователе из базы данных
+    user_info = get_user_by_id(user_id, database_path)
+    # Получаем имя тех зоны
+    coast = get_coast_name(districts_tz, user_data['district'])
+
+    # Сохраняем заявку в ГТаблицу
+    g_data = [
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
+            "%Y-%m-%d %H:%M:%S"),
+        coast,
+        'Телеграмм БОТ',
+        user_info.get('full_name', 'Не указан'),
+        user_info.get('phone_number', 'Не указан'),
+        user_data.get('management_company', 'Не указана'),
+        user_data.get('address', 'Не указан'),
+        user_data.get('district', 'Не указан'),
+        user_data.get('complaint_type', 'Не указан'),
+        user_data.get('trouble', 'Не указано'),
+        user_data.get('comment', 'Нет комментария'),
+        user_data.get('contact_method', 'Не указан'),
+        user_data.get('email', 'Не указан')  # email перед photo_link
+    ]
+
+    if link_ya_disk:
+        g_data.append(link_ya_disk)  # Добавляем фото, если есть
+
+    g_data.append(user_info.get('username', 'Не указан'))
+
+    # Сохраняем в базу данных жалобу
+    try:
+        save_quality_complaint(database_path, *g_data[3:])
+    except Exception as e:
+        logging.error(f"Ошибка при сохранении жалобы в БД: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при сохранении жалобы в БД. "
+                               "Смотри логи." + lost_data)
+    try:
+        upload_information_to_gsheets(GOOGLE_CLIENT,
+                                      GOOGLE_SHEET_COMPLAINT_NAME,
                                       g_data)
     except Exception as e:
         logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")

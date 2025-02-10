@@ -7,20 +7,20 @@
 """
 
 import os
+import re
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 async def download_photo(file_id: str, bot) -> bytes:
-    """Получает file_id возвращает от телеграмма файл в bytes."""
+    """Получает file_id, возвращает от телеграмм файл в bytes."""
     file = await bot.get_file(file_id)
     file_path = file.file_path
     # Загружаем файл в bytes
@@ -42,9 +42,10 @@ def get_main_menu() -> InlineKeyboardMarkup:
     Направить обращение
     """
     keyboard = InlineKeyboardMarkup()
-    button = InlineKeyboardButton(text='Заявка на вывоз КГМ',
-                                  callback_data='kgm_request')
-    keyboard.add(button)
+    keyboard.add(InlineKeyboardButton("Заявка на вывоз КГМ",
+                                      callback_data="kgm_request"))
+    keyboard.add(InlineKeyboardButton("Обращение по качеству услуг",
+                                      callback_data="quality_complaint"))
     return keyboard
 
 
@@ -65,7 +66,8 @@ def get_district_name(district_names: list) -> InlineKeyboardMarkup:
                                           callback_data=f"district:{district}"))
     return keyboard
 
-def get_coast_name(districts:dict[str: str], district_name) -> str:
+
+def get_coast_name(districts: dict[str: str], district_name) -> str:
     return districts.get(district_name)
 
 
@@ -98,3 +100,85 @@ async def send_email(message_text, target_email):
         mailserver.quit()
     except smtplib.SMTPException:
         print("Ошибка: Невозможно отправить сообщение")
+
+
+# Клавиатуры для FSM этапов
+async def get_quality_complaint_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Сообщить о невывозе",
+                                      callback_data="Невывоз"))
+    keyboard.add(InlineKeyboardButton("Замечания по качеству услуг",
+                                      callback_data="Замечания"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_no_collection_days_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Сегодня", callback_data="today"))
+    keyboard.add(InlineKeyboardButton("Вчера", callback_data="1 день"))
+    keyboard.add(InlineKeyboardButton("Позавчера",
+                                      callback_data="2 дня"))
+    keyboard.add(
+        InlineKeyboardButton("Более 2 дней", callback_data="Больше 2 дней"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_quality_issue_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Не вернули бак на место",
+                                      callback_data="Не вернули бак"))
+    keyboard.add(
+        InlineKeyboardButton("Повредили бак", callback_data="Повредили бак"))
+    keyboard.add(InlineKeyboardButton("Не подобрали россыпь",
+                                      callback_data="Россыпь"))
+    keyboard.add(InlineKeyboardButton("Неполная отгрузка",
+                                      callback_data="Неполная отгрузка"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_cancel_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_confirmation_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(
+        InlineKeyboardButton("Подтвердить", callback_data="confirm_data"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_contact_method_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Обратная связь не нужна",
+                                      callback_data="Не нужна"))
+    keyboard.add(InlineKeyboardButton("Телефон", callback_data="Телефон"))
+    keyboard.add(
+        InlineKeyboardButton("Электронная почта", callback_data="email"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_no_comment_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(
+        InlineKeyboardButton("Нет комментария", callback_data="Нет комментария"))
+    keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
+    return keyboard
+
+
+async def get_registration_keyboard():
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Зарегистрироваться", callback_data="register"))
+    return keyboard
+
+
+# Функция для валидации email
+def is_valid_email(email: str) -> bool:
+    return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$",
+                    email) is not None

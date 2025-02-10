@@ -18,6 +18,7 @@ database_path = init_db('database', 'users.db')
 # Создаем клиент яндекса
 YANDEX_CLIENT = yadisk.Client(token=os.getenv('YA_DISK_TOKEN'))
 YA_DISK_FOLDER = os.getenv('YA_DISK_FOLDER')
+YA_DISK_FOLDER_COMPLAINTS=os.getenv('YA_DISK_FOLDER_COMPLAINTS')
 
 # Устанавливаем соединение с API Google
 scope = ['https://spreadsheets.google.com/feeds',
@@ -29,9 +30,11 @@ GOOGLE_SHEET_NAME_LEFT = os.getenv('GOOGLE_SHEET_NAME_LEFT')
 GOOGLE_SHEET_NAME_RIGHT = os.getenv('GOOGLE_SHEET_NAME_RIGHT')
 GOOGLE_SHEET_NAME = {'left': GOOGLE_SHEET_NAME_LEFT,
                      'right': GOOGLE_SHEET_NAME_RIGHT}
+GOOGLE_SHEET_COMPLAINT_NAME = os.getenv('GOOGLE_SHEET_COMPLAINT_NAME')
 
 DEV_TG_ID = os.getenv('DEV_TG_ID')
 TIMEDELTA = int(os.getenv('TIMEDELTA'))
+GROUP_ID=os.getenv('GROUP_ID')
 
 text_message_answers = [
     'Я могу отвечать только на вопросы выбранные из меню. Воспользуйтесь им пожалуйста.',

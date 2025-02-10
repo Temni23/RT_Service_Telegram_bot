@@ -19,3 +19,16 @@ class RegistrationStates(StatesGroup):
     waiting_for_phone_number = State()
     waiting_for_workplace = State()
     confirmation_application = State()
+
+class ComplaintFSM(StatesGroup):
+    """Класс для приема жалоб."""
+    waiting_complaint_type = State()
+    waiting_trouble = State()
+    waiting_address = State()
+    waiting_for_management_company = State()
+    waiting_for_district = State()
+    waiting_photo = State()
+    waiting_comment = State()
+    waiting_contact_method = State()
+    waiting_email = State()
+    waiting_for_confirmation = State()
