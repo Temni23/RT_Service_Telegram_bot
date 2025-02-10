@@ -413,6 +413,24 @@ async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu())
     await state.finish()
     await callback_query.answer()
+    # Пересылаем заявку в группу
+    forward_text = (
+        f"Получена заявка на вывоз КГМ:\n"
+        f"\U000026A0 Район: {user_data['district']}\n"
+        f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
+        f"\U00002757 Адрес дома: {user_data['address']}\n"
+        f"\U0001F5D1 Тип отходов: {user_data['waste_type']}\n\n"
+        f"\U0001F5E8 Комментарий: {user_data['comment']}\n\n"
+    )
+
+    try:
+        await bot.send_photo(chat_id=GROUP_ID, photo=user_data['photo'],
+                             caption=forward_text)
+    except Exception as error:
+        logging.error(f"Ошибка при пересылке: {error}")
+        await bot.send_message(DEV_TG_ID,
+                               f"Произошла {error} ошибка при загрузке фото. Смотри логи.")
+
     # Сохраняем фото на ЯДиск
     link_ya_disk = False
     try:
@@ -591,8 +609,8 @@ async def comment_entered(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
     keyboard = await get_contact_method_keyboard()
     if '@' in message.from_user.mention:
-        keyboard.add(
-            InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+                                                                 callback_data="Телеграм")])
     await message.answer("8/8 Выберете способ обратной связи",
                          reply_markup=keyboard)
     await ComplaintFSM.waiting_contact_method.set()
@@ -604,8 +622,8 @@ async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(comment=callback.data)
     keyboard = await get_contact_method_keyboard()
     if '@' in callback.from_user.mention:
-        keyboard.add(
-            InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+                                                                callback_data="Телеграм")])
     await callback.message.answer("8/8 Выберете способ обратной связи",
                                   reply_markup=keyboard)
     await ComplaintFSM.waiting_contact_method.set()
@@ -666,11 +684,12 @@ async def email_entered(message: types.Message, state: FSMContext):
         keyboard = await get_confirmation_keyboard()
         print(message.from_user.mention)
         if '@' in message.from_user.mention:
-            keyboard.add(InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
+            keyboard.add(
+                InlineKeyboardButton("Телеграм", callback_data="Телеграм"))
 
         await message.answer_photo(photo=photo_file_id,
-                                            caption=confirmation_text,
-                                            reply_markup=keyboard)
+                                   caption=confirmation_text,
+                                   reply_markup=keyboard)
         await ComplaintFSM.waiting_for_confirmation.set()
     else:
         await message.answer(
@@ -709,7 +728,6 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
         logging.error(f"Ошибка при пересылке: {error}")
         await bot.send_message(DEV_TG_ID,
                                f"Произошла {error} ошибка при загрузке фото. Смотри логи.")
-
 
     # Сохраняем фото на ЯДиск
     link_ya_disk = False
