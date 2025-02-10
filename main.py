@@ -513,12 +513,14 @@ async def complaint_type_chosen(callback: types.CallbackQuery,
 @dp.callback_query_handler(state=ComplaintFSM.waiting_trouble)
 async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "today":
-        await callback.message.answer("Техника работает на линии, ожидайте.", #TODO Добавить санпин
+        await callback.message.answer("Техника работает на линии, ожидайте.",
+                                      # TODO Добавить санпин
                                       reply_markup=get_main_menu())
         await state.finish()
         return
     await state.update_data(trouble=callback.data)
-    await callback.message.answer("3/8 С каким адресом связано обращение?",  #TODO Привести к одному виду с КГМ
+    await callback.message.answer("3/8 С каким адресом связано обращение?",
+                                  # TODO Привести к одному виду с КГМ
                                   reply_markup=get_cancel())
     await ComplaintFSM.waiting_address.set()
     await callback.answer()
@@ -544,7 +546,7 @@ async def management_company_chosen(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(state=ComplaintFSM.waiting_for_district)
 async def address_entered(callback: types.CallbackQuery, state: FSMContext):
-    await state.update_data(district = callback.data.split(":")[1])
+    await state.update_data(district=callback.data.split(":")[1])
     await callback.message.answer("6/8 Отправьте фото с фиксацией проблемы",
                                   reply_markup=await get_cancel_keyboard())
     await ComplaintFSM.waiting_photo.set()
@@ -590,19 +592,21 @@ async def contact_method_chosen(callback: types.CallbackQuery,
     else:
         await state.update_data(contact_method=callback.data)
         user_data = await state.get_data()
-        photo_file_id = user_data["photo"]
+        photo_file_id = user_data.get('photo', 'photo missed')
         confirmation_text = (
             f"Проверьте введенные данные:\n"
-            f"\U0001F5D1 Тип обращения: {user_data['complaint_type']}\n"
-            f"\U00002b50	 Суть обращения: {user_data['trouble']}\n"
-            f"\U000026A0 Район: {user_data['district']}\n"
-            f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
-            f"\U00002757 Адрес дома: {user_data['address']}\n"
-            f"\U0001F5E8 Комментарий: {user_data['comment']}\n"
-            f"\U00002712 Способ обратной связи: {user_data['contact_method']}\n\n"
-            "Если все верно, нажмите 'Подтвердить'.")
-        await callback.message.answer_photo(photo=photo_file_id, caption=confirmation_text,
-                                      reply_markup=await get_confirmation_keyboard())
+            f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+            f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+            f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+            f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+            f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+            f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+            f"\U00002712 Способ обратной связи: {user_data.get('contact_method', 'Не выбран')}\n\n"
+            "Если все верно, нажмите 'Подтвердить'."
+        )
+        await callback.message.answer_photo(photo=photo_file_id,
+                                            caption=confirmation_text,
+                                            reply_markup=await get_confirmation_keyboard())
         await ComplaintFSM.waiting_for_confirmation.set()
         await callback.answer()
 
@@ -613,19 +617,21 @@ async def email_entered(message: types.Message, state: FSMContext):
     if is_valid_email(email):
         await state.update_data(email=email)
         user_data = await state.get_data()
-        photo_file_id = user_data["photo"]
+        photo_file_id = user_data.get('photo', 'photo missed')
         confirmation_text = (
             f"Проверьте введенные данные:\n"
-            f"\U0001F5D1 Тип обращения: {user_data['complaint_type']}\n"
-            f"\U00002b50 Суть обращения: {user_data['trouble']}\n"
-            f"\U000026A0 Район: {user_data['district']}\n"
-            f"\U00002764 Управляющая компания: {user_data['management_company']}\n"
-            f"\U00002757 Адрес дома: {user_data['address']}\n"
-            f"\U0001F5E8 Комментарий: {user_data['comment']}\n"
-            f"\U00002712 Способ обратной связи: {user_data['contact_method']}: {user_data['email']} \n\n"
-            "Если все верно, нажмите 'Подтвердить'.")
+            f"\U0001F5D1 Тип обращения: {user_data.get('complaint_type', 'Не указано')}\n"
+            f"\U00002b50 Суть обращения: {user_data.get('trouble', 'Не указано')}\n"
+            f"\U000026A0 Район: {user_data.get('district', 'Не указан')}\n"
+            f"\U00002764 Управляющая компания: {user_data.get('management_company', 'Не указана')}\n"
+            f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
+            f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
+            f"\U00002712 Способ обратной связи: "
+            f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
+            "Если все верно, нажмите 'Подтвердить'."
+        )
         await message.answer_photo(photo_file_id, caption=confirmation_text,
-                             reply_markup=await get_confirmation_keyboard())
+                                   reply_markup=await get_confirmation_keyboard())
         await ComplaintFSM.waiting_for_confirmation.set()
     else:
         await message.answer(
