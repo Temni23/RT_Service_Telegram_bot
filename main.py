@@ -487,6 +487,7 @@ async def start_complaint_process(callback: types.CallbackQuery,
             "Нажмите кнопку ниже для регистрации.",
             reply_markup=keyboard
         )
+        await callback.answer()
         return
     await ComplaintFSM.waiting_complaint_type.set()
     await callback.answer()
@@ -520,6 +521,7 @@ async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("3/8 С каким адресом связано обращение?",  #TODO Привести к одному виду с КГМ
                                   reply_markup=get_cancel())
     await ComplaintFSM.waiting_address.set()
+    await callback.answer()
 
 
 @dp.message_handler(state=ComplaintFSM.waiting_address)
@@ -546,6 +548,7 @@ async def address_entered(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("6/8 Отправьте фото с фиксацией проблемы",
                                   reply_markup=await get_cancel_keyboard())
     await ComplaintFSM.waiting_photo.set()
+    await callback.answer()
 
 
 @dp.message_handler(content_types=types.ContentType.PHOTO,
@@ -573,6 +576,7 @@ async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("8/8 Выберете способ обратной связи",
                                   reply_markup=await get_contact_method_keyboard())
     await ComplaintFSM.waiting_contact_method.set()
+    await callback.answer()
 
 
 @dp.callback_query_handler(state=ComplaintFSM.waiting_contact_method)
@@ -600,6 +604,7 @@ async def contact_method_chosen(callback: types.CallbackQuery,
         await callback.message.answer_photo(photo=photo_file_id, caption=confirmation_text,
                                       reply_markup=await get_confirmation_keyboard())
         await ComplaintFSM.waiting_for_confirmation.set()
+        await callback.answer()
 
 
 @dp.message_handler(state=ComplaintFSM.waiting_email)
@@ -630,15 +635,15 @@ async def email_entered(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm_data",
                            state=ComplaintFSM.waiting_for_confirmation)
-async def confirm_data(callback_query: types.CallbackQuery, state: FSMContext):
+async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
-    user_id = callback_query.from_user.id
+    user_id = callback.from_user.id
     # Логика сохранения заявки в базу данных здесь
-    await callback_query.message.answer(
+    await callback.message.answer(
         "Спасибо! Ваша заявка принята \U0001F9D9",
         reply_markup=get_main_menu())
     await state.finish()
-    await callback_query.answer()
+    await callback.answer()
 
 
 ##############################################################################
