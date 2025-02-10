@@ -51,6 +51,25 @@ def init_db(database_folder: str, database_name: str) -> str:
                 username TEXT
             )
         ''')
+        # Таблица жалоб на качество услуг
+        cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS quality_complaints (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp INTEGER,
+                        full_name TEXT,
+                        phone_number TEXT,
+                        management_company TEXT,
+                        address TEXT,
+                        district TEXT,
+                        complaint_type TEXT,
+                        trouble TEXT,
+                        comment TEXT,
+                        contact_method TEXT,
+                        email TEXT,
+                        photo_link TEXT,
+                        username TEXT
+                    )
+                ''')
         conn.commit()
         conn.close()
         return db_path
@@ -122,9 +141,6 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         conn.close()
 
 
-import sqlite3
-
-
 def get_user_by_id(user_id: int, db_path: str) -> dict:
     """
     Получает информацию о пользователе из базы данных по user_id.
@@ -160,3 +176,46 @@ def get_user_by_id(user_id: int, db_path: str) -> dict:
         conn.close()
 
     return user_data
+
+
+def save_quality_complaint(db_path: str, full_name: str, phone_number: str,
+                           management_company: str, address: str, district: str,
+                           complaint_type: str, trouble: str, comment: str,
+                           contact_method: str, email: str, photo_link: str,
+                           username: str):
+    """
+    Сохраняет жалобу на качество услуг в базу данных.
+
+    Args:
+        db_path (str): Имя файла базы данных.
+        full_name (str): ФИО пользователя.
+        phone_number (str): Номер телефона пользователя.
+        management_company (str): Название управляющей компании.
+        address (str): Адрес дома.
+        district (str): Район.
+        complaint_type (str): Тип жалобы.
+        trouble (str): Конкретная проблема.
+        comment (str): Комментарий пользователя.
+        contact_method (str): Способ связи (телефон, email, Telegram).
+        email (str):  email.
+        photo_link (str): Ссылка на фото.
+        username (str): Username пользователя в Telegram.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        timestamp = int(time.time())  # Текущее время в формате UNIX
+        cursor.execute('''
+            INSERT INTO quality_complaints (
+                timestamp, full_name, phone_number, management_company, 
+                address, district, complaint_type, trouble, comment, 
+                contact_method, email, photo_link, username
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (timestamp, full_name, phone_number, management_company,
+              address, district, complaint_type, trouble, comment,
+              contact_method, email, photo_link, username))
+        conn.commit()
+    except sqlite3.Error as e:
+        print(f"Ошибка при сохранении жалобы: {e}")
+    finally:
+        conn.close()

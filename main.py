@@ -22,7 +22,8 @@ from bots_func import (get_main_menu, get_cancel, get_waste_type_keyboard,
                        get_confirmation_keyboard, get_no_comment_keyboard,
                        get_contact_method_keyboard, get_registration_keyboard)
 from database_functions import (is_user_registered, register_user,
-                                save_kgm_request, get_user_by_id)
+                                save_kgm_request, get_user_by_id,
+                                save_quality_complaint)
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                       database_path, log_file, waste_types, district_names,
@@ -650,6 +651,64 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu())
     await state.finish()
     await callback.answer()
+
+    # Сохраняем фото на ЯДиск
+    link_ya_disk = False
+    try:
+        downloaded_file = await download_photo(user_data['photo'], bot)
+        link_ya_disk = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                           YA_DISK_FOLDER)
+    except Exception as e:
+        logging.error(f"Ошибка при загрузке файла на Яндекс.Диск: {e}")
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при загрузке фото. Смотри логи.")
+    # Получаем информацию о пользователе из базы данных
+    user_info = get_user_by_id(user_id, database_path)
+    # Получаем имя тех зоны
+    coast = get_coast_name(districts_tz, user_data['district'])
+
+    # Сохраняем заявку в ГТаблицу
+    g_data = [
+        (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
+            "%Y-%m-%d %H:%M:%S"),
+        'Телеграмм БОТ',
+        user_info['full_name'],
+        user_info['phone_number'],
+        user_data['management_company'],
+        user_data['address'],
+        user_data['district'],
+        user_data['complaint_type'],
+        user_data['trouble'],
+        user_data['comment'],
+        user_data['contact_method'],
+        user_data.get('email', 'Не указан')  # email перед photo_link
+    ]
+
+    if link_ya_disk:
+        g_data.append(link_ya_disk)
+
+    g_data.append(user_info['username'])  # Username всегда **последний**
+
+    # Сохраняем в базу данных жалобу
+    try:
+        save_quality_complaint(database_path, *g_data[2:])
+    except Exception as e:
+        logging.error(f"Ошибка при сохранении жалобы в БД: {e}")
+        lost_data = ' '.join(g_data)
+        await bot.send_message(DEV_TG_ID,
+                               "Произошла ошибка при сохранении жалобы в БД. "
+                               "Смотри логи." + lost_data)
+    # try:
+    #     upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME[coast],
+    #                                   g_data)
+    # except Exception as e:
+    #     logging.error(f"Ошибка при загрузке файла на Гугл.Диск: {e}")
+    #     lost_data = ' '.join(g_data)
+    #     await bot.send_message(DEV_TG_ID,
+    #                            "Произошла ошибка при загрузке на GD. "
+    #                            "Смотри логи." + lost_data)
+
+
 
 
 ##############################################################################
