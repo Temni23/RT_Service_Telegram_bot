@@ -29,6 +29,7 @@ from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       database_path, log_file, waste_types, district_names,
                       districts_tz, TIMEDELTA, GOOGLE_SHEET_COMPLAINT_NAME,
                       YA_DISK_FOLDER_COMPLAINTS, GROUP_ID)
+from standard_messages import today_sanpin
 
 load_dotenv()
 
@@ -533,10 +534,10 @@ async def complaint_type_chosen(callback: types.CallbackQuery,
 @dp.callback_query_handler(state=ComplaintFSM.waiting_trouble)
 async def trouble_chosen(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "today":
-        await callback.message.answer("Техника работает на линии, ожидайте.",
-                                      # TODO Добавить санпин
+        await callback.message.answer(today_sanpin,
                                       reply_markup=get_main_menu())
         await state.finish()
+        await callback.answer()
         return
     await state.update_data(trouble=callback.data)
     await callback.message.answer("3/8 Напишите адрес с которым связано "
@@ -609,7 +610,7 @@ async def comment_entered(message: types.Message, state: FSMContext):
     await state.update_data(comment=message.text)
     keyboard = await get_contact_method_keyboard()
     if '@' in message.from_user.mention:
-        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+        keyboard.inline_keyboard.insert(1, [InlineKeyboardButton("Телеграм",
                                                                  callback_data="Телеграм")])
     await message.answer("8/8 Выберете способ обратной связи",
                          reply_markup=keyboard)
@@ -622,7 +623,7 @@ async def comment_clicked(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(comment=callback.data)
     keyboard = await get_contact_method_keyboard()
     if '@' in callback.from_user.mention:
-        keyboard.inline_keyboard.insert(0, [InlineKeyboardButton("Телеграм",
+        keyboard.inline_keyboard.insert(1, [InlineKeyboardButton("Телеграм",
                                                                 callback_data="Телеграм")])
     await callback.message.answer("8/8 Выберете способ обратной связи",
                                   reply_markup=keyboard)
@@ -718,7 +719,7 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
         f"\U00002757 Адрес дома: {user_data.get('address', 'Не указан')}\n"
         f"\U0001F5E8 Комментарий: {user_data.get('comment', 'Отсутствует')}\n"
         f"\U00002712 Способ обратной связи: "
-        f"{user_data.get('contact_method', 'Не выбран')}: {user_data.get('email', 'email не выбран')} \n\n"
+        f"{user_data.get('contact_method', 'Не выбран')}"
     )
     # Пересылаем обращение в группу сотрудников
     try:

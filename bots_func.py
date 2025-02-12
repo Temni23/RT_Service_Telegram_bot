@@ -116,11 +116,11 @@ async def get_quality_complaint_keyboard():
 async def get_no_collection_days_keyboard():
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Сегодня", callback_data="today"))
-    keyboard.add(InlineKeyboardButton("Вчера", callback_data="1 день"))
-    keyboard.add(InlineKeyboardButton("Позавчера",
+    keyboard.add(InlineKeyboardButton("Невывоз 1 день", callback_data="1 день"))
+    keyboard.add(InlineKeyboardButton("Невывоз 2 дня",
                                       callback_data="2 дня"))
     keyboard.add(
-        InlineKeyboardButton("Более 2 дней", callback_data="Больше 2 дней"))
+        InlineKeyboardButton("Невывоз более 2 дней", callback_data="Больше 2 дней"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
@@ -158,8 +158,7 @@ async def get_contact_method_keyboard():
     keyboard.add(InlineKeyboardButton("Обратная связь не нужна",
                                       callback_data="Не нужна"))
     keyboard.add(InlineKeyboardButton("Телефон", callback_data="Телефон"))
-    keyboard.add(
-        InlineKeyboardButton("Электронная почта", callback_data="email"))
+    #keyboard.add(InlineKeyboardButton("Электронная почта", callback_data="email"))
     keyboard.add(InlineKeyboardButton("Отмена", callback_data="cancel"))
     return keyboard
 
